@@ -1,6 +1,7 @@
 # Multiplicación de matrices
 Se elaboró un algoritmo de multiplicación de matrices con hilos, estas matrices son de datos double generados aleatoriamente. Para esto, se realizan los siguientes archivos:
-mmClasicaOpenMP.c
+
+# mmClasicaOpenMP.c
 Este archivo contiene el código de la creación y multiplicación de matrices. Entre sus funciones están:
 ## InicioMuestra
 ### Entradas: 
