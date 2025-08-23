@@ -68,6 +68,20 @@ Multiplica las matrices mA y mB y almacena el resultado en mC. Este proceso se p
 7.	Un bucle interno (k) recorre los elementos para calcular el producto punto de la fila i de mA y la columna j de mB.
 8.	pA++ y pB+=D se utilizan para avanzar a través de los elementos de la fila de mA y la columna de mB.
 9.	El resultado del producto punto (Suma) se asigna al elemento correspondiente en la matriz resultante mC (mC[i*D+j]).
+´´´mermaid
+graph TD
+    A[Inicio] --> B{Bucle en paralelo<br>i=0 hasta D};
+    B --> C{Bucle j=0 hasta D};
+    C --> D[Inicializar punteros pA y pB];
+    D --> E{Bucle k=0 hasta D};
+    E --> F[Suma += *pA * *pB];
+    F --> G[Avanzar punteros];
+    G --> E;
+    E --> H[Asignar Suma a mC[i*D+j]];
+    H --> C;
+    C --> B;
+    B --> I[Fin];
+´´´
 
 ## main
 Todas estas funciones se usan en el main, donde:
@@ -81,6 +95,26 @@ Todas estas funciones se usan en el main, donde:
 8.	Se finaliza la medición del tiempo y se imprime el resultado con FinMuestra().
 9.	Se muestra la matriz resultante (matrixC) si es pequeña.
 10.	Finalmente, se libera la memoria asignada dinámicamente con free() para evitar fugas de memoria.
+
+´´´mermaid
+graph TD
+    A[Inicio] --> B{Validar argumentos de entrada};
+    B -- Sí --> C[Asignar memoria para matrices A, B, C];
+    B -- No --> D[Mostrar mensaje de uso y salir];
+    C --> E[Establecer número de hilos OpenMP];
+    E --> F[Inicializar matrices A y B con datos aleatorios];
+    F --> G[Iniciar medición de tiempo];
+    G --> H[Llamar a multiMatrix para multiplicar];
+    H --> I[Finalizar medición de tiempo y mostrar resultado];
+    I --> J[Liberar memoria de matrices];
+    J --> K[Fin];
+    subgraph multiMatrix
+    H1(Bucle i: filas) --> H2(Bucle j: columnas);
+    H2 --> H3(Bucle k: producto punto);
+    H3 --> H4(Almacenar resultado en matriz C);
+    end
+    H --> H1;
+´´´
 
 # MakeFile
 Para simplificar la compilación del código, se utiliza un Makefile. Este archivo automatiza el proceso de construcción, permitiendo compilar el programa con un simple comando. Las variables FOPENMP = -fopenmp -O3 son cruciales, ya que habilitan el soporte de OpenMP para el paralelismo y optimizan el código, garantizando un mejor rendimiento. El objetivo ALL se encarga de compilar el programa principal mmClasicaOpenMP, mientras que el objetivo clean elimina el archivo ejecutable, facilitando la limpieza del proyecto.
