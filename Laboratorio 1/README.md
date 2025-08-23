@@ -68,7 +68,7 @@ Multiplica las matrices mA y mB y almacena el resultado en mC. Este proceso se p
 7.	Un bucle interno (k) recorre los elementos para calcular el producto punto de la fila i de mA y la columna j de mB.
 8.	pA++ y pB+=D se utilizan para avanzar a través de los elementos de la fila de mA y la columna de mB.
 9.	El resultado del producto punto (Suma) se asigna al elemento correspondiente en la matriz resultante mC (mC[i*D+j]).
-´´´mermaid
+```mermaid
 graph TD
     A[Inicio] --> B{Bucle en paralelo<br>i=0 hasta D};
     B --> C{Bucle j=0 hasta D};
@@ -81,6 +81,7 @@ graph TD
     H --> C;
     C --> B;
     B --> I[Fin];
+```
 
 ## main
 Todas estas funciones se usan en el main, donde:
@@ -95,7 +96,7 @@ Todas estas funciones se usan en el main, donde:
 9.	Se muestra la matriz resultante (matrixC) si es pequeña.
 10.	Finalmente, se libera la memoria asignada dinámicamente con free() para evitar fugas de memoria.
 
-´´´mermaid
+```mermaid
 graph TD
     A[Inicio] --> B{Validar argumentos de entrada};
     B -- Sí --> C[Asignar memoria para matrices A, B, C];
@@ -113,6 +114,7 @@ graph TD
     H3 --> H4(Almacenar resultado en matriz C);
     end
     H --> H1;
+```
 
 # MakeFile
 Para simplificar la compilación del código, se utiliza un Makefile. Este archivo automatiza el proceso de construcción, permitiendo compilar el programa con un simple comando. Las variables FOPENMP = -fopenmp -O3 son cruciales, ya que habilitan el soporte de OpenMP para el paralelismo y optimizan el código, garantizando un mejor rendimiento. El objetivo ALL se encarga de compilar el programa principal mmClasicaOpenMP, mientras que el objetivo clean elimina el archivo ejecutable, facilitando la limpieza del proyecto.
