@@ -81,7 +81,6 @@ graph TD
     H --> C;
     C --> B;
     B --> I[Fin];
-´´´
 
 ## main
 Todas estas funciones se usan en el main, donde:
@@ -114,7 +113,6 @@ graph TD
     H3 --> H4(Almacenar resultado en matriz C);
     end
     H --> H1;
-´´´
 
 # MakeFile
 Para simplificar la compilación del código, se utiliza un Makefile. Este archivo automatiza el proceso de construcción, permitiendo compilar el programa con un simple comando. Las variables FOPENMP = -fopenmp -O3 son cruciales, ya que habilitan el soporte de OpenMP para el paralelismo y optimizan el código, garantizando un mejor rendimiento. El objetivo ALL se encarga de compilar el programa principal mmClasicaOpenMP, mientras que el objetivo clean elimina el archivo ejecutable, facilitando la limpieza del proyecto.
