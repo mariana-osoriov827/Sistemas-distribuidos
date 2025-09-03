@@ -1,3 +1,12 @@
+/**************************************************************************************
+* Fecha: 22/08/2025
+* Autor: Mariana Osorio Vasquez, Gabriel Jaramillo, Roberth Méndez, Juan Esteban Vera
+* Tema: 
+* - RMI
+* Descripción:
+* - En este proyecto de programación, el código crea un sistema RMI en java
+***************************************************************************************/
+
 /*
  * Definición de la interfaz pública "Sumador".
  * Al extender "java.rmi.Remote", se convierte en una interfaz remota válida para RMI.
