@@ -1,7 +1,25 @@
+/**************************************************************************************
+* Fecha: 05/09/2025
+* Autores: Mariana Osorio Vasquez, Gabriel Jaramillo, Roberth Méndez, Juan Esteban Vera
+* Tema:
+* - Cliente RMI en Java
+* Descripción:
+* - Implementa la aplicación cliente que se conecta al servidor RMI de la biblioteca.
+* - Establece la conexión con el servicio remoto "BibliotecaService" a través del Registry
+*   en el puerto 1099.
+* - Permite al usuario seleccionar operaciones disponibles:
+*   - Prestar, Devolver, Renovar un libro.
+*   - Mostrar un reporte del estado de los ejemplares.
+*   - Salir y desconectarse del servidor.
+* - Envía las solicitudes al servidor, recibe la respuesta y la imprime en consola.
+**************************************************************************************/
+
+import java.net.InetAddress;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.util.List;
 import java.util.Scanner;
+import java.net.InetAddress;
 
 public class ClienteRMI {
 
@@ -15,7 +33,7 @@ public class ClienteRMI {
             Biblioteca bibliotecaRemota = (Biblioteca) registry.lookup("BibliotecaService");
 
             // Se obtiene el nombre de usuario del sistema para usarlo como identificador del cliente (puede ser el usuario del SO o un nombre fijo)
-            String clienteId = System.getProperty("user.name");
+            String clienteId = System.getProperty("java.rmi.server.hostname", InetAddress.getLocalHost().getHostAddress());
             // Se conecta el cliente al servidor usando su identificador
             bibliotecaRemota.conectar(clienteId);
 

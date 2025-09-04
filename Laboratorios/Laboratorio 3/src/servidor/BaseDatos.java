@@ -7,6 +7,8 @@
 * - Contiene la lógica para manejar la base de datos de libros y ejemplares.
 * - Permite cargar y guardar la información desde y en archivos de texto.
 * - Implementa las operaciones de negocio: procesar préstamos, devoluciones y renovaciones.
+* - Se usa el método synchronized para evitar condiciones de carrera en las operaciones de préstamo,
+    devolución y renovación.
 * - Provee reportes del estado actual de la biblioteca (disponibilidad y fechas).
 * - Utiliza clases auxiliares (Libro, Ejemplar) para estructurar la información.
 **************************************************************************************/
@@ -132,13 +134,16 @@ public class BaseDatos {
       if (l == null) 
         return "LIBRO NO ENCONTRADO";
 
-      for (Ejemplar e : l.getEjemplares())
-          if (e.getStatus() == 'D') {
-              e.setStatus('P');
-              e.setFecha(obtenerFechaFutura(7));
+      // Sincronización para evitar condiciones de carrera al acceder a los ejemplares
+      synchronized (l) { 
+        for (Ejemplar e : l.getEjemplares())
+            if (e.getStatus() == 'D') {
+                e.setStatus('P');
+                e.setFecha(obtenerFechaFutura(7));
               return "OK";
           }
-
+      }
+      
       return "NO DISPONIBLE";
 
     }
@@ -154,12 +159,14 @@ public class BaseDatos {
       if (l == null) 
         return "LIBRO NO ENCONTRADO";
 
-      for (Ejemplar e : l.getEjemplares())
-          if (e.getStatus() == 'P') {
-              e.setStatus('D');
-              e.setFecha(obtenerFechaActual());
+      synchronized (l) { // Sincronización para evitar condiciones de carrera al acceder a los ejemplares
+        for (Ejemplar e : l.getEjemplares())
+            if (e.getStatus() == 'P') {
+                e.setStatus('D');
+                e.setFecha(obtenerFechaActual());
               return "OK";
           }
+      }
 
       return "NO APLICABLE";
 
@@ -175,11 +182,13 @@ public class BaseDatos {
       if (l == null) 
         return "LIBRO NO ENCONTRADO";
 
-      for (Ejemplar e : l.getEjemplares())
-          if (e.getStatus() == 'P') {
-              e.setFecha(obtenerFechaFutura(7));
-              return "OK";
-          }
+      synchronized (l) {
+        for (Ejemplar e : l.getEjemplares())
+            if (e.getStatus() == 'P') {
+                e.setFecha(obtenerFechaFutura(7));
+                return "OK";
+            }
+      }
        
       return "NO APLICABLE";
 
