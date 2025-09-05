@@ -4,6 +4,7 @@ Este laboratorio implementa un sistema Cliente/Servidor utilizando Java RMI (Rem
 El servidor actúa como una biblioteca que administra los libros y ejemplares disponibles, mientras que los clientes pueden conectarse para realizar operaciones como préstamos, devoluciones, renovaciones y consultas de reportes.
 
 La arquitectura sigue el modelo distribuido en el que múltiples clientes pueden acceder simultáneamente al servicio remoto ofrecido por el servidor. En el siguiente enlace se encuentra un vídeo mostrando el funcionamiento del sistema usando tres máquinas virtuales asignadas por las Pontificia Universidad Javeriana como dos clientes y un servidor: https://www.youtube.com/watch?v=OHnEojjhv_c
+
 ---
 
 ## 💻 Descripción del Cliente (ClienteRMI)
