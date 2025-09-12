@@ -1,9 +1,13 @@
 package threadsJarroba;
 
-/**
- * 
- * @author Richard
- */
+/**************************************************************************************
+* Fecha: 05/09/2025
+* Autor: Mariana Osorio Vasquez, Gabriel Jaramillo, Roberth Méndez, Juan Esteban Vera
+* Tema: 
+* - Programación de Sockets
+* Descripción:
+* - Clase que representa a una cajera en el supermercado
+***************************************************************************************/
 public class Cajera { // Clase que representa a una cajera en el supermercado
 	
 	private String nombre;

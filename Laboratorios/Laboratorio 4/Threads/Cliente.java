@@ -1,9 +1,13 @@
 package threadsJarroba;
 
-/**
- * 
- * @author Richard
- */
+/**************************************************************************************
+* Fecha: 05/09/2025
+* Autor: Mariana Osorio Vasquez, Gabriel Jaramillo, Roberth Méndez, Juan Esteban Vera
+* Tema: 
+* - Programación de Sockets
+* Descripción:
+* - // Clase que representa a un cliente del supermercado
+***************************************************************************************/
 public class Cliente { // Clase que representa a un cliente del supermercado
 	
 	private String nombre; // Nombre del cliente

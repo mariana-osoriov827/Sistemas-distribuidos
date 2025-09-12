@@ -1,9 +1,13 @@
 package threadsJarroba;
 
-/**
- * 
- * @author Richard
- */
+/**************************************************************************************
+* Fecha: 05/09/2025
+* Autor: Mariana Osorio Vasquez, Gabriel Jaramillo, Roberth Méndez, Juan Esteban Vera
+* Tema: 
+* - Programación de Sockets
+* Descripción:
+* - // Clase que hereda de Thread, representa a una cajera trabajando en un hilo
+***************************************************************************************/
 public class CajeraThread extends Thread { // Clase que hereda de Thread, representa a una cajera trabajando en un hilo
 	
 	private String nombre;

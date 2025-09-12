@@ -1,9 +1,15 @@
 package threadsJarroba;
 
-/**
- * 
- * @author Richard
- */
+/**************************************************************************************
+* Fecha: 05/09/2025
+* Autor: Mariana Osorio Vasquez, Gabriel Jaramillo, Roberth Méndez, Juan Esteban Vera
+* Tema: 
+* - Programación de Sockets
+* Descripción:
+* - // Programa que simula a dos cajeras atendiendo clientes en paralelo utilizando hilos. 
+* En este caso se extiende la clase Thread, por lo que cada cajera es directamente un hilo. A diferencia de
+* implementar Runnable, esta forma acopla la lógica de la tarea con la gestión del hilo, reduciendo la reutilización de la clase.
+***************************************************************************************/
 public class MainThread { // Clase principal para probar con hilos
 	
 	public static void main(String[] args) { // Método main, punto de entrada

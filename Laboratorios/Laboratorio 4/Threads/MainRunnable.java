@@ -1,9 +1,15 @@
 package threadsJarroba;
 
-/**
- * 
- * @author Richard
- */
+/**************************************************************************************
+* Fecha: 05/09/2025
+* Autor: Mariana Osorio Vasquez, Gabriel Jaramillo, Roberth Méndez, Juan Esteban Vera
+* Tema: 
+* - Programación de Sockets
+* Descripción:
+* - // * Programa que simula a dos cajeras atendiendo a clientes en paralelo usando hilos. 
+* La clase implementa Runnable en lugar de extender Thread, lo que permite separar la lógica de la tarea (procesar compras)
+* de la gestión del hilo y así poder reutilizar la clase en diferentes contextos de concurrencia.
+***************************************************************************************/
 public class MainRunnable implements Runnable{  // Esta clase implementa Runnable para ejecutar en hilos
 	
 	private Cliente cliente;

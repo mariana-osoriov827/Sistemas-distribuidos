@@ -1,9 +1,14 @@
 package threadsJarroba;
 
-/**
- * 
- * @author Richard
- */
+/**************************************************************************************
+* Fecha: 05/09/2025
+* Autor: Mariana Osorio Vasquez, Gabriel Jaramillo, Roberth Méndez, Juan Esteban Vera
+* Tema: 
+* - Programación de Sockets
+* Descripción:
+* - // Este programa se encarga crear las instancias de cliente y cajero, de manera que un cajero atienda a un cliente,
+		en esta situacion el programa funciona de manera secuencial es decir, se atiende primero un cliente y despues el siguiente.
+***************************************************************************************/
 public class Main { // Clase principal
 	
 	public static void main(String[] args) { // Método main, punto de entrada del programa
