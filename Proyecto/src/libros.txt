@@ -1,0 +1,28 @@
+Redes, 3400, 3
+1, P, 09-09-2025
+2, D, 
+3, P, 25-09-2025
+
+Cálculo Diferencial, 120, 4
+1, D, 
+2, P, 10-09-2025
+3, D, 
+4, P, 20-09-2025
+
+Programación en Java, 500, 3
+1, D, 
+2, D, 
+3, P, 15-09-2025
+
+Inteligencia Artificial, 800, 2
+1, P, 05-09-2025
+2, D, 
+
+Bases de Datos, 220, 3
+1, D, 
+2, P, 12-09-2025
+3, D, 
+
+Algoritmos, 150, 2
+1, P, 07-09-2025
+2, P, 14-09-2025
