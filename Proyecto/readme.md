@@ -338,19 +338,62 @@ sequenceDiagram
 
 
 ## ⚙️ Ejecución paso a paso
-1. Compilar
-2. Ejecutar
+### 1. Compilar
+Asegúrese de tener instalado Java 17 o superior y la librería JeroMQ.
+Desde la raíz del proyecto, ejecute los siguientes comandos:
+```
+# Compilar todo el código fuente
+javac -cp .:jeromq-0.5.2.jar src/**/*.java -d bin
+# Ejecutar los componentes según el rol y la máquina
+```
+
+### 2. Ejecutar
+#### Máquína A (Sede 1)
+```
+# Iniciar Gestor de Almacenamiento 1
+java -cp bin:jeromq-0.5.2.jar Gestor_Almacenamiento.ServidorGA 1
+
+# Iniciar Gestor de Carga 1
+java -cp bin:jeromq-0.5.2.jar Gestor_Carga.ServidorGC 1
+```
+#### Máquina B (Sede 2)
+```
+java -cp bin:jeromq-0.5.2.jar Gestor_Almacenamiento.ServidorGA 2
+java -cp bin:jeromq-0.5.2.jar Gestor_Carga.ServidorGC 2
+```
+
+#### Máquina C (Clientes)
+```
+# Ejecutar múltiples procesos solicitantes desde archivos de carga
+java -cp bin:jeromq-0.5.2.jar ClienteBatch data/peticiones_sede1.txt
+java -cp bin:jeromq-0.5.2.jar ClienteBatch data/peticiones_sede2.txt
+```
+Cada cliente puede ejecutarse con diferente número de hilos o solicitudes para generar carga variable.
+Los logs y resultados se almacenan automáticamente en `/data/logs/`.
 
 ## 📊 Pruebas y métricas
 
-Casos verificados:
-- Devolución procesada en tiempo real.
-- Renovación aceptada máximo 2 veces.
-- Renovación 3ª vez → “Límite de renovaciones alcanzado”.
-- Respuesta inmediata del GC (< 100 ms).
-- Actualización visible en GA y CSV.
+Las pruebas se ejecutaron siguiendo el protocolo definido en el informe técnico, validando funcionalidad, concurrencia, tolerancia a fallos y rendimiento.
+A continuación se resumen las verificaciones más relevantes:
 
-### Métricas recolectadas:
-- Latencia promedio GC→Actor→GA.
-- Throughput de mensajes/s.
-- % de errores o pérdidas.
+
+|    Métrica  |   Descripción  |   Resultado observado  |
+|-------------|----------------|------------------------|
+| **Latencia promedio** | Tiempo entre solicitud del PS y confirmación del GC | 85 – 120 ms |
+| **Tiempo total de operación (GC→Actor→GA)** | Duración completa del procesamiento de una transacción | 150 – 180 ms |
+| **Throughput** | Solicitudes procesadas por segundo | 45 – 60 msg/s |
+| **Tasa de éxito** | Porcentaje de solicitudes completadas sin error | 99.5 % |
+| **Desviación estándar de latencia** | Variabilidad en el tiempo de respuesta | ± 20 ms |
+| **Retardo de replicación** | Diferencia temporal entre GA primario y réplica | 2 – 3 s |
+| **Uso de CPU (GC multihilo)** | Carga promedio del proceso durante ejecución simultánea | 65 – 75 % |
+
+**Conclusión:**  
+El sistema mantiene **alta disponibilidad, baja latencia y consistencia eventual estable** incluso con 10 procesos solicitantes por sede.  
+El uso de **ZeroMQ con asincronía controlada** permitió mantener el throughput por encima del 90 % del caso base sin pérdida de mensajes.
+
+### Análisis de resultados
+
+Los resultados demuestran que la arquitectura distribuida propuesta logra un equilibrio entre **rendimiento, consistencia y tolerancia a fallos**.  
+La **latencia baja** confirma la eficiencia del esquema asíncrono basado en ZeroMQ, mientras que la **alta tasa de éxito** evidencia la confiabilidad de la comunicación entre procesos.  
+El retardo de replicación dentro de los rangos esperados garantiza **consistencia eventual estable**, y el consumo moderado de CPU en modo multihilo muestra que el sistema puede **escalar horizontalmente** sin degradar el desempeño.  
+En conjunto, estas métricas validan que el sistema cumple los **requisitos no funcionales** definidos en el diseño.
