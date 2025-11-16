@@ -20,7 +20,9 @@ public class ServidorGA {
     public static void main(String[] args) {
 
         // Se define el rol del servidor (primary o replica) según los argumentos recibidos.
+        // Uso: java ServidorGA <role> [replicaHost]
         String role = (args.length > 0) ? args[0] : "primary";
+        String replicaHost = (args.length > 1) ? args[1] : null;
         String archivoBD = "libros.txt";
 
         try {
@@ -36,6 +38,12 @@ public class ServidorGA {
 
             // Se crea el objeto remoto (GestorAlmacenamientoImpl).
             GestorAlmacenamientoImpl impl = new GestorAlmacenamientoImpl(bd, role);
+            
+            // Si es primario y se especificó host de réplica, configurarlo
+            if ("primary".equalsIgnoreCase(role) && replicaHost != null) {
+                impl.setReplicaHost(replicaHost);
+                System.out.println("Replicación asíncrona configurada hacia: " + replicaHost);
+            }
 
             // Se intenta crear el registro RMI en el puerto 1099.
             try {

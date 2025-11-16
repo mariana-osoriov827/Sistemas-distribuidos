@@ -10,6 +10,7 @@
  ***************************************************************************************/
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
+// Nota: GestorAlmacenamiento debe estar compilado en el mismo classpath
 
 /**
  * 

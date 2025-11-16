@@ -17,18 +17,23 @@ public class Ejemplar implements Serializable {
     private int id;
     private char estado; 
     private String fecha; 
+    private int contadorRenovaciones; // Contador de renovaciones (máximo 2)
 
     public Ejemplar(int id, char estado, String fecha) {
         this.id = id;
         this.estado = estado;
         this.fecha = fecha;
+        this.contadorRenovaciones = 0;
     }
 
     public int getId() { return id; }
     public char getEstado() { return estado; }
     public String getFecha() { return fecha; }
+    public int getContadorRenovaciones() { return contadorRenovaciones; }
 
     public void setEstado(char estado) { this.estado = estado; }
     public void setFecha(String fecha) { this.fecha = fecha; }
+    public void incrementarRenovaciones() { this.contadorRenovaciones++; }
+    public void resetearRenovaciones() { this.contadorRenovaciones = 0; }
 }
 

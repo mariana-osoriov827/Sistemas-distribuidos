@@ -44,4 +44,10 @@ public interface GestorAlmacenamiento extends Remote {
      */
     void replicarOperacion(String op, String codigoLibro, String usuarioId, String fecha) throws RemoteException;
 
+    /**
+     * Health Check: permite verificar si el GA está activo y disponible.
+     * Usado para detectar fallas automáticamente.
+     */
+    boolean healthCheck() throws RemoteException;
+
 }
