@@ -7,7 +7,6 @@
  * - PUB socket para publicar mensajes de Devolución/Renovación (asíncrono)
  * - REP socket para atender solicitudes de Préstamo (síncrono)
  ***************************************************************************************/
-package Gestor_carga;
 
 import org.zeromq.ZMQ;
 import org.zeromq.ZContext;

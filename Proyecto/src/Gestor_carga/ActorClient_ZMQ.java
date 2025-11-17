@@ -7,7 +7,6 @@
  * - Se conecta al GC mediante patrón Pub/Sub
  * - Actualiza la BD mediante conexión directa al GA
  ***************************************************************************************/
-package Gestor_carga;
 
 import org.zeromq.ZMQ;
 import org.zeromq.ZContext;

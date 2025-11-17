@@ -7,7 +7,6 @@
  * - Atiende solicitudes de Actores y GC
  * - Mantiene replicación asíncrona hacia GA réplica
  ***************************************************************************************/
-package Gestor_Almacenamiento;
 
 import java.io.*;
 import java.net.*;
@@ -94,20 +93,20 @@ public class ServidorGA_TCP {
             
             switch (tipo.toUpperCase()) {
                 case "PRESTAMO":
-                    resultado = bd.prestarLibro(Integer.parseInt(codigoLibro));
+                    resultado = bd.prestarEjemplar(codigoLibro);
                     respuesta = resultado ? "OK|Préstamo otorgado" : "FAILED|No disponible";
                     if (resultado) encolarReplicacion("PRESTAMO", codigoLibro, usuarioId, null);
                     break;
                     
                 case "DEVOLUCION":
-                    resultado = bd.devolverLibro(Integer.parseInt(codigoLibro));
+                    resultado = bd.devolverEjemplar(codigoLibro);
                     respuesta = resultado ? "OK|Devolución registrada" : "FAILED|Error en devolución";
                     if (resultado) encolarReplicacion("DEVOLUCION", codigoLibro, usuarioId, null);
                     break;
                     
                 case "RENOVACION":
                     String nuevaFecha = parts.length > 3 ? parts[3] : null;
-                    resultado = bd.renovarLibro(Integer.parseInt(codigoLibro));
+                    resultado = bd.renovarPrestamo(codigoLibro, usuarioId, nuevaFecha);
                     respuesta = resultado ? "OK|Renovación exitosa" : "FAILED|Máximo renovaciones alcanzado";
                     if (resultado) encolarReplicacion("RENOVACION", codigoLibro, usuarioId, nuevaFecha);
                     break;
