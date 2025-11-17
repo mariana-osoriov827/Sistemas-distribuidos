@@ -93,6 +93,11 @@ public class ServidorGA_TCP {
             String respuesta;
             
             switch (tipo.toUpperCase()) {
+                case "INFO":
+                    String nombreLibro = bd.obtenerNombreLibro(codigoLibro);
+                    respuesta = nombreLibro != null ? "OK|" + nombreLibro : "FAILED|Libro no encontrado";
+                    break;
+                    
                 case "PRESTAMO":
                     resultado = bd.prestarEjemplar(codigoLibro);
                     respuesta = resultado ? "OK|Préstamo otorgado" : "FAILED|No disponible";

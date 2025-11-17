@@ -138,4 +138,10 @@ public class BaseDatos {
         }
         return sb.toString();
     }
+    
+    // Obtiene el nombre de un libro dado su código
+    public String obtenerNombreLibro(String codigoLibro) {
+        Libro l = libros.get(codigoLibro);
+        return l != null ? l.getNombre() : null;
+    }
 }
