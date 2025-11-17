@@ -8,6 +8,7 @@
  * - Procesa las solicitudes de forma SÍNCRONA con el GA
  * - Garantiza que el préstamo se valida y registra antes de confirmar al PS
  ***************************************************************************************/
+package Gestor_carga;
 
 import org.zeromq.ZMQ;
 import org.zeromq.ZContext;
