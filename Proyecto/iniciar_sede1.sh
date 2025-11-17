@@ -18,27 +18,30 @@ GA_HOST="localhost"
 REPLICA_HOST="10.43.102.177"  # Cambiar por IP de Sede 2
 REPLICA_PORT=6560
 
+# Classpath con dependencias
+CLASSPATH="target/classes:$HOME/.m2/repository/org/zeromq/jeromq/0.5.3/jeromq-0.5.3.jar"
+
 echo ""
 echo "[1/4] Iniciando Gestor de Almacenamiento (GA)..."
-gnome-terminal -- bash -c "cd $(pwd) && java -cp target/classes Gestor_Almacenamiento.ServidorGA_TCP primary $GA_PORT $REPLICA_HOST $REPLICA_PORT; exec bash" &
+gnome-terminal -- bash -c "cd $(pwd) && java -cp $CLASSPATH Gestor_Almacenamiento.ServidorGA_TCP primary $GA_PORT $REPLICA_HOST $REPLICA_PORT; exec bash" &
 sleep 3
 
 echo "[2/4] Iniciando Gestor de Carga (GC)..."
-gnome-terminal -- bash -c "cd $(pwd) && java -cp target/classes Gestor_carga.ServidorGC_ZMQ $SEDE $PUB_PORT $REP_PORT $GA_HOST $GA_PORT; exec bash" &
+gnome-terminal -- bash -c "cd $(pwd) && java -cp $CLASSPATH Gestor_carga.ServidorGC_ZMQ $SEDE $PUB_PORT $REP_PORT $GA_HOST $GA_PORT; exec bash" &
 sleep 3
 
 echo "[3/4] Iniciando Actores..."
 
 # Actor Devolución
-gnome-terminal -- bash -c "cd $(pwd) && java -cp target/classes Gestor_carga.ActorClient_ZMQ ${GA_HOST}:${PUB_PORT} ${GA_HOST}:${GA_PORT} DEVOLUCION; exec bash" &
+gnome-terminal -- bash -c "cd $(pwd) && java -cp $CLASSPATH Gestor_carga.ActorClient_ZMQ ${GA_HOST}:${PUB_PORT} ${GA_HOST}:${GA_PORT} DEVOLUCION; exec bash" &
 sleep 1
 
 # Actor Renovación
-gnome-terminal -- bash -c "cd $(pwd) && java -cp target/classes Gestor_carga.ActorClient_ZMQ ${GA_HOST}:${PUB_PORT} ${GA_HOST}:${GA_PORT} RENOVACION; exec bash" &
+gnome-terminal -- bash -c "cd $(pwd) && java -cp $CLASSPATH Gestor_carga.ActorClient_ZMQ ${GA_HOST}:${PUB_PORT} ${GA_HOST}:${GA_PORT} RENOVACION; exec bash" &
 sleep 1
 
 # Actor Préstamo
-gnome-terminal -- bash -c "cd $(pwd) && java -cp target/classes Gestor_carga.ActorPrestamo_ZMQ ${GA_HOST}:${PUB_PORT} ${GA_HOST}:${GA_PORT}; exec bash" &
+gnome-terminal -- bash -c "cd $(pwd) && java -cp $CLASSPATH Gestor_carga.ActorPrestamo_ZMQ ${GA_HOST}:${PUB_PORT} ${GA_HOST}:${GA_PORT}; exec bash" &
 sleep 1
 
 echo ""
@@ -50,5 +53,5 @@ echo "  - Replier (REP): $REP_PORT"
 echo "  - GA (TCP): $GA_PORT"
 echo ""
 echo "Para enviar peticiones desde clientes:"
-echo "  java -cp target/classes ClienteBatch_ZMQ src/peticiones.txt ${GA_HOST}:${REP_PORT}"
+echo "  java -cp $CLASSPATH ClienteBatch_ZMQ src/peticiones.txt ${GA_HOST}:${REP_PORT}"
 echo ""
