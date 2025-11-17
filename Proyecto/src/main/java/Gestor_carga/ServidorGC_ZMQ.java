@@ -155,8 +155,8 @@ public class ServidorGC_ZMQ {
             ZMQ.Socket socket = context.createSocket(ZMQ.REQ);
             socket.connect("tcp://" + gaHost + ":" + gaPort);
             
-            // Enviar consulta de información
-            socket.send("INFO|" + codigoLibro);
+            // Enviar consulta de información (INFO necesita 3 parámetros: tipo|codigo|usuario)
+            socket.send("INFO|" + codigoLibro + "|system");
             
             // Recibir respuesta
             String response = socket.recvStr();
