@@ -9,6 +9,7 @@
  *   sobre getMessageStatus() hasta timeout (10s).
  * - Operaciones: DEVOLUCION, RENOVACION, PRESTAMO.
  ***************************************************************************************/
+import Gestor_carga.BibliotecaGC;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.rmi.registry.LocateRegistry;

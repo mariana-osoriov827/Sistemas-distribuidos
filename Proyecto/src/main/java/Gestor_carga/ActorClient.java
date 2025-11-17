@@ -10,6 +10,7 @@
  ***************************************************************************************/
 package Gestor_carga;
 
+import Gestor_Almacenamiento.GestorAlmacenamiento;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 
