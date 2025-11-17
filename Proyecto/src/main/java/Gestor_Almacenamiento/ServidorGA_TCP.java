@@ -80,14 +80,14 @@ public class ServidorGA_TCP {
             
             // Formato: TIPO|codigoLibro|usuarioId[|nuevaFecha]
             String[] parts = request.split("\\|");
-            if (parts.length < 3) {
+            if (parts.length < 2) {
                 out.println("ERROR|Formato inválido");
                 return;
             }
             
             String tipo = parts[0];
             String codigoLibro = parts[1];
-            String usuarioId = parts[2];
+            String usuarioId = parts.length > 2 ? parts[2] : "system";
             
             boolean resultado = false;
             String respuesta;
