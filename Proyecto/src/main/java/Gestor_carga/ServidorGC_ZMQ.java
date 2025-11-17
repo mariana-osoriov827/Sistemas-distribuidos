@@ -151,19 +151,24 @@ public class ServidorGC_ZMQ {
      * Consulta información del libro en el GA
      */
     private String consultarInfoLibro(String codigoLibro) {
-        try (ZContext context = new ZContext()) {
-            ZMQ.Socket socket = context.createSocket(ZMQ.REQ);
-            socket.connect("tcp://" + gaHost + ":" + gaPort);
+        try {
+            // Conectar al GA via TCP (no ZeroMQ)
+            java.net.Socket socket = new java.net.Socket(gaHost, gaPort);
+            java.io.PrintWriter out = new java.io.PrintWriter(socket.getOutputStream(), true);
+            java.io.BufferedReader in = new java.io.BufferedReader(
+                new java.io.InputStreamReader(socket.getInputStream()));
             
-            // Enviar consulta de información (INFO necesita 3 parámetros: tipo|codigo|usuario)
-            socket.send("INFO|" + codigoLibro + "|system");
+            // Enviar consulta de información
+            out.println("INFO|" + codigoLibro + "|system");
             
             // Recibir respuesta
-            String response = socket.recvStr();
-            return response;
+            String response = in.readLine();
+            
+            socket.close();
+            return response != null ? response : "ERROR|Sin respuesta del GA";
             
         } catch (Exception e) {
-            return "ERROR|No se pudo consultar información del libro";
+            return "ERROR|No se pudo consultar información del libro: " + e.getMessage();
         }
     }
     
