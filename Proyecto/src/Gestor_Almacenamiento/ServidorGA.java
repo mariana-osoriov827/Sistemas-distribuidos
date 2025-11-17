@@ -23,7 +23,7 @@ public class ServidorGA {
         // Uso: java ServidorGA <role> [replicaHost]
         String role = (args.length > 0) ? args[0] : "primary";
         String replicaHost = (args.length > 1) ? args[1] : null;
-        String archivoBD = "libros.txt";
+        String archivoBD = "src/libros.txt";
 
         try {
             
