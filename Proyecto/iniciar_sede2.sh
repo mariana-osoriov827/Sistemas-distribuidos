@@ -15,29 +15,29 @@ GA_PORT=6560
 GA_HOST="localhost"
 
 # Classpath con dependencias
-CLASSPATH="target/classes:$HOME/.m2/repository/org/zeromq/jeromq/0.5.3/jeromq-0.5.3.jar"
+CLASSPATH="target/classes:$HOME/.m2/repository/org/zeromq/jeromq/0.6.0/jeromq-0.6.0.jar"
 
 echo ""
 echo "[1/4] Iniciando Gestor de Almacenamiento (GA) Réplica..."
-gnome-terminal -- bash -c "cd $(pwd) && java -cp 'target/classes:$HOME/.m2/repository/org/zeromq/jeromq/0.5.3/jeromq-0.5.3.jar' Gestor_Almacenamiento.ServidorGA_TCP replica $GA_PORT; exec bash" &
+gnome-terminal -- bash -c "cd $(pwd) && java -cp 'target/classes:$HOME/.m2/repository/org/zeromq/jeromq/0.6.0/jeromq-0.6.0.jar' Gestor_Almacenamiento.ServidorGA_TCP replica $GA_PORT; exec bash" &
 sleep 3
 
 echo "[2/4] Iniciando Gestor de Carga (GC)..."
-gnome-terminal -- bash -c "cd $(pwd) && java -cp 'target/classes:$HOME/.m2/repository/org/zeromq/jeromq/0.5.3/jeromq-0.5.3.jar' Gestor_carga.ServidorGC_ZMQ $SEDE $PUB_PORT $REP_PORT $GA_HOST $GA_PORT; exec bash" &
+gnome-terminal -- bash -c "cd $(pwd) && java -cp 'target/classes:$HOME/.m2/repository/org/zeromq/jeromq/0.6.0/jeromq-0.6.0.jar' Gestor_carga.ServidorGC_ZMQ $SEDE $PUB_PORT $REP_PORT $GA_HOST $GA_PORT; exec bash" &
 sleep 3
 
 echo "[3/4] Iniciando Actores..."
 
 # Actor Devolución
-gnome-terminal -- bash -c "cd $(pwd) && java -cp 'target/classes:$HOME/.m2/repository/org/zeromq/jeromq/0.5.3/jeromq-0.5.3.jar' Gestor_carga.ActorClient_ZMQ ${GA_HOST}:${PUB_PORT} ${GA_HOST}:${GA_PORT} DEVOLUCION; exec bash" &
+gnome-terminal -- bash -c "cd $(pwd) && java -cp 'target/classes:$HOME/.m2/repository/org/zeromq/jeromq/0.6.0/jeromq-0.6.0.jar' Gestor_carga.ActorClient_ZMQ ${GA_HOST}:${PUB_PORT} ${GA_HOST}:${GA_PORT} DEVOLUCION; exec bash" &
 sleep 1
 
 # Actor Renovación
-gnome-terminal -- bash -c "cd $(pwd) && java -cp 'target/classes:$HOME/.m2/repository/org/zeromq/jeromq/0.5.3/jeromq-0.5.3.jar' Gestor_carga.ActorClient_ZMQ ${GA_HOST}:${PUB_PORT} ${GA_HOST}:${GA_PORT} RENOVACION; exec bash" &
+gnome-terminal -- bash -c "cd $(pwd) && java -cp 'target/classes:$HOME/.m2/repository/org/zeromq/jeromq/0.6.0/jeromq-0.6.0.jar' Gestor_carga.ActorClient_ZMQ ${GA_HOST}:${PUB_PORT} ${GA_HOST}:${GA_PORT} RENOVACION; exec bash" &
 sleep 1
 
 # Actor Préstamo
-gnome-terminal -- bash -c "cd $(pwd) && java -cp 'target/classes:$HOME/.m2/repository/org/zeromq/jeromq/0.5.3/jeromq-0.5.3.jar' Gestor_carga.ActorPrestamo_ZMQ ${GA_HOST}:${PUB_PORT} ${GA_HOST}:${GA_PORT}; exec bash" &
+gnome-terminal -- bash -c "cd $(pwd) && java -cp 'target/classes:$HOME/.m2/repository/org/zeromq/jeromq/0.6.0/jeromq-0.6.0.jar' Gestor_carga.ActorPrestamo_ZMQ ${GA_HOST}:${PUB_PORT} ${GA_HOST}:${GA_PORT}; exec bash" &
 sleep 1
 
 echo ""

@@ -36,7 +36,7 @@ echo ""
 
 # 4. Verificar JeroMQ
 echo "[4] Verificando JeroMQ..."
-JEROMQ_PATH="$HOME/.m2/repository/org/zeromq/jeromq/0.5.3/jeromq-0.5.3.jar"
+JEROMQ_PATH="$HOME/.m2/repository/org/zeromq/jeromq/0.6.0/jeromq-0.6.0.jar"
 if [ -f "$JEROMQ_PATH" ]; then
     echo "✓ JeroMQ encontrado en:"
     echo "  $JEROMQ_PATH"
@@ -62,7 +62,7 @@ echo ""
 
 # 7. Test del classpath
 echo "[7] Test del classpath..."
-CLASSPATH="target/classes:$HOME/.m2/repository/org/zeromq/jeromq/0.5.3/jeromq-0.5.3.jar"
+CLASSPATH="target/classes:$HOME/.m2/repository/org/zeromq/jeromq/0.6.0/jeromq-0.6.0.jar"
 echo "  CLASSPATH configurado como:"
 echo "  $CLASSPATH"
 echo ""
