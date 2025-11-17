@@ -55,7 +55,7 @@ sleep 1
 
 echo ""
 echo "======================================"
-echo "  ✓ SISTEMA INICIADO EXITOSAMENTE    "
+echo "  SISTEMA INICIADO EXITOSAMENTE    "
 echo "======================================"
 echo ""
 echo "Componentes activos:"

@@ -75,15 +75,15 @@ public class ActorPrestamo_ZMQ {
                     respuestaCompleta = response;
                     
                     if (prestamoConcedido) {
-                        System.out.println("✓ ActorPrestamo: PRÉSTAMO OTORGADO para libro " + codigoLibro);
+                        System.out.println("[OK] ActorPrestamo: PRÉSTAMO OTORGADO para libro " + codigoLibro);
                     } else {
-                        System.out.println("✗ ActorPrestamo: PRÉSTAMO DENEGADO para libro " + codigoLibro + 
+                        System.out.println("[FAIL] ActorPrestamo: PRÉSTAMO DENEGADO para libro " + codigoLibro + 
                                          " - " + respuestaCompleta);
                     }
                     
                 } catch (Exception e) {
                     System.err.println("Error conectando al GA: " + e.getMessage());
-                    System.out.println("✗ ActorPrestamo: PRÉSTAMO FALLÓ por error de conexión");
+                    System.out.println("[ERROR] ActorPrestamo: PRÉSTAMO FALLÓ por error de conexión");
                 }
                 
                 // Nota: En una arquitectura más compleja, aquí enviaríamos una respuesta

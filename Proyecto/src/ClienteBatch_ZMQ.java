@@ -57,11 +57,11 @@ public class ClienteBatch_ZMQ {
                 String response = requester.recvStr();
                 
                 if (response.startsWith("OK")) {
-                    System.out.println("✓ Operación " + tipo + " sobre " + codigo + " procesada con éxito.");
+                    System.out.println("[OK] Operación " + tipo + " sobre " + codigo + " procesada con éxito.");
                 } else if (response.startsWith("ERROR") || response.startsWith("FAILED")) {
-                    System.out.println("✗ Error: operación " + tipo + " sobre " + codigo + " falló.");
+                    System.out.println("[ERROR] Operación " + tipo + " sobre " + codigo + " falló.");
                 } else {
-                    System.out.println("→ Respuesta: " + response);
+                    System.out.println("[INFO] Respuesta: " + response);
                 }
                 
                 contador++;

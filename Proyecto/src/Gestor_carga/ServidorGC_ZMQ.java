@@ -74,12 +74,26 @@ public class ServidorGC_ZMQ {
                     
                     // Formato: TIPO|codigoLibro|usuarioId
                     String[] parts = request.split("\\|");
-                    if (parts.length >= 3) {
+                    if (parts.length >= 1) {
                         String tipo = parts[0].toUpperCase();
-                        String codigoLibro = parts[1];
-                        String usuarioId = parts[2];
                         
-                        if ("PRESTAMO".equals(tipo)) {
+                        if ("INFO".equals(tipo) && parts.length >= 2) {
+                            // INFO: Consultar información del libro
+                            String codigoLibro = parts[1];
+                            String infoLibro = consultarInfoLibro(codigoLibro);
+                            replier.send(infoLibro);
+                            System.out.println("GC respondió INFO: " + infoLibro);
+                            
+                        } else if ("CANCEL".equals(tipo)) {
+                            // CANCEL: Cliente canceló operación
+                            replier.send("OK|Cancelado");
+                            System.out.println("GC: operación cancelada por cliente");
+                            
+                        } else if (parts.length >= 3) {
+                            String codigoLibro = parts[1];
+                            String usuarioId = parts[2];
+                        
+                            if ("PRESTAMO".equals(tipo)) {
                             // PRESTAMO: Síncrono - publicar para que Actor Préstamo lo procese
                             // y esperar respuesta mediante un canal de vuelta
                             String id = UUID.randomUUID().toString();
@@ -118,6 +132,9 @@ public class ServidorGC_ZMQ {
                         } else {
                             replier.send("ERROR|Tipo de operación desconocido");
                         }
+                        } else {
+                            replier.send("ERROR|Formato inválido - parámetros insuficientes");
+                        }
                     } else {
                         replier.send("ERROR|Formato inválido");
                     }
@@ -126,6 +143,26 @@ public class ServidorGC_ZMQ {
             
         } catch (Exception e) {
             e.printStackTrace();
+        }
+    }
+    
+    /**
+     * Consulta información del libro en el GA
+     */
+    private String consultarInfoLibro(String codigoLibro) {
+        try (ZContext context = new ZContext()) {
+            ZMQ.Socket socket = context.createSocket(ZMQ.REQ);
+            socket.connect("tcp://" + gaHost + ":" + gaPort);
+            
+            // Enviar consulta de información
+            socket.send("INFO|" + codigoLibro);
+            
+            // Recibir respuesta
+            String response = socket.recvStr();
+            return response;
+            
+        } catch (Exception e) {
+            return "ERROR|No se pudo consultar información del libro";
         }
     }
     

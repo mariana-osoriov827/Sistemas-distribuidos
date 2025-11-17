@@ -40,7 +40,7 @@ else
     echo ""
     
     if [ ! -f "$ARCHIVO" ]; then
-        echo "❌ Error: Archivo '$ARCHIVO' no encontrado"
+        echo "[ERROR] Archivo '$ARCHIVO' no encontrado"
         exit 1
     fi
     

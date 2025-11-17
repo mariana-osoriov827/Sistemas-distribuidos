@@ -70,7 +70,7 @@ public class ClienteInteractivo_ZMQ {
                 String infoResponse = requester.recvStr();
                 
                 if (infoResponse.startsWith("ERROR")) {
-                    System.out.println("\n❌ " + infoResponse);
+                    System.out.println("\n[ERROR] " + infoResponse);
                     continue;
                 }
                 
@@ -100,7 +100,7 @@ public class ClienteInteractivo_ZMQ {
                         operacion = "RENOVACION|" + codigoLibro + "|" + userId;
                         break;
                     default:
-                        System.out.println("❌ Opción inválida");
+                        System.out.println("[ERROR] Opción inválida");
                         // Consumir respuesta pendiente
                         requester.send("CANCEL");
                         requester.recvStr();
@@ -120,11 +120,11 @@ public class ClienteInteractivo_ZMQ {
     
     private static String formatResponse(String response) {
         if (response.startsWith("OK")) {
-            return "✓ " + response.substring(3);
+            return "[OK] " + response.substring(3);
         } else if (response.startsWith("ERROR") || response.startsWith("FAILED")) {
-            return "❌ " + response;
+            return "[ERROR] " + response;
         } else {
-            return "→ " + response;
+            return "[INFO] " + response;
         }
     }
 }
