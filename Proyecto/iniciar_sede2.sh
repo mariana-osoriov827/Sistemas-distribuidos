@@ -25,67 +25,124 @@ echo "Iniciando sistema..."
 echo "Todas las operaciones se mostrarán en esta terminal"
 echo ""
 
+# Contadores de éxito/fallo
+COMPONENTS_STARTED=0
+COMPONENTS_FAILED=0
+
+# Función para verificar si un proceso inició correctamente
+check_component() {
+    local name=$1
+    local pid=$2
+    local log=$3
+    
+    sleep 3
+    
+    if kill -0 $pid 2>/dev/null; then
+        # El proceso está vivo, verificar si hay errores en la salida
+        if grep -qi "error\|exception\|could not find" "$log" 2>/dev/null; then
+            echo "[FALLO] $name (PID: $pid) - Errores detectados"
+            cat "$log"
+            COMPONENTS_FAILED=$((COMPONENTS_FAILED + 1))
+            kill $pid 2>/dev/null
+            return 1
+        else
+            echo "[OK] $name iniciado correctamente (PID: $pid)"
+            COMPONENTS_STARTED=$((COMPONENTS_STARTED + 1))
+            return 0
+        fi
+    else
+        echo "[FALLO] $name - El proceso terminó inmediatamente"
+        if [ -f "$log" ]; then
+            cat "$log"
+        fi
+        COMPONENTS_FAILED=$((COMPONENTS_FAILED + 1))
+        return 1
+    fi
+}
+
 # Gestor de Almacenamiento (GA) Réplica
 echo "[1/5] Iniciando Gestor de Almacenamiento (GA) Réplica..."
-java -cp "$CP" Gestor_Almacenamiento.ServidorGA_TCP replica $GA_PORT &
+GA_LOG=$(mktemp)
+java -cp "$CP" Gestor_Almacenamiento.ServidorGA_TCP replica $GA_PORT > "$GA_LOG" 2>&1 &
 GA_PID=$!
-sleep 2
+check_component "Gestor de Almacenamiento (GA) Réplica" $GA_PID "$GA_LOG"
 
 # Gestor de Carga (GC)
 echo "[2/5] Iniciando Gestor de Carga (GC)..."
-java -cp "$CP" Gestor_carga.ServidorGC_ZMQ $SEDE $PUB_PORT $REP_PORT $GA_HOST $GA_PORT &
+GC_LOG=$(mktemp)
+java -cp "$CP" Gestor_carga.ServidorGC_ZMQ $SEDE $PUB_PORT $REP_PORT $GA_HOST $GA_PORT > "$GC_LOG" 2>&1 &
 GC_PID=$!
-sleep 2
+check_component "Gestor de Carga (GC)" $GC_PID "$GC_LOG"
 
 # Actores
 echo "[3/5] Iniciando Actor Devolución..."
-java -cp "$CP" Gestor_carga.ActorClient_ZMQ ${GA_HOST}:${PUB_PORT} ${GA_HOST}:${GA_PORT} DEVOLUCION &
+DEV_LOG=$(mktemp)
+java -cp "$CP" Gestor_carga.ActorClient_ZMQ ${GA_HOST}:${PUB_PORT} ${GA_HOST}:${GA_PORT} DEVOLUCION > "$DEV_LOG" 2>&1 &
 DEV_PID=$!
-sleep 1
+check_component "Actor Devolución" $DEV_PID "$DEV_LOG"
 
 echo "[4/5] Iniciando Actor Renovación..."
-java -cp "$CP" Gestor_carga.ActorClient_ZMQ ${GA_HOST}:${PUB_PORT} ${GA_HOST}:${GA_PORT} RENOVACION &
+REN_LOG=$(mktemp)
+java -cp "$CP" Gestor_carga.ActorClient_ZMQ ${GA_HOST}:${PUB_PORT} ${GA_HOST}:${GA_PORT} RENOVACION > "$REN_LOG" 2>&1 &
 REN_PID=$!
-sleep 1
+check_component "Actor Renovación" $REN_PID "$REN_LOG"
 
 echo "[5/5] Iniciando Actor Préstamo..."
-java -cp "$CP" Gestor_carga.ActorPrestamo_ZMQ ${GA_HOST}:${PUB_PORT} ${GA_HOST}:${GA_PORT} &
+PRES_LOG=$(mktemp)
+java -cp "$CP" Gestor_carga.ActorPrestamo_ZMQ ${GA_HOST}:${PUB_PORT} ${GA_HOST}:${GA_PORT} > "$PRES_LOG" 2>&1 &
 PRES_PID=$!
-sleep 1
+check_component "Actor Préstamo" $PRES_PID "$PRES_LOG"
 
 echo ""
 echo "======================================"
-echo "  SISTEMA INICIADO EXITOSAMENTE    "
-echo "======================================"
-echo ""
-echo "Componentes activos:"
-echo "  - GA Réplica (PID: $GA_PID) - Puerto: $GA_PORT"
-echo "  - GC (PID: $GC_PID) - PUB: $PUB_PORT, REP: $REP_PORT"
-echo "  - Actor Devolución (PID: $DEV_PID)"
-echo "  - Actor Renovación (PID: $REN_PID)"
-echo "  - Actor Préstamo (PID: $PRES_PID)"
-echo ""
-echo "Todas las operaciones se mostrarán aquí abajo:"
-echo "======================================"
-echo ""
-
-# Función para limpiar al salir
-cleanup() {
+if [ $COMPONENTS_FAILED -eq 0 ]; then
+    echo "  SISTEMA INICIADO EXITOSAMENTE      "
+    echo "======================================"
     echo ""
-    echo "Deteniendo sistema..."
+    echo "Componentes activos: $COMPONENTS_STARTED/5"
+    echo "  - GA Réplica (PID: $GA_PID) - Puerto: $GA_PORT"
+    echo "  - GC (PID: $GC_PID) - PUB: $PUB_PORT, REP: $REP_PORT"
+    echo "  - Actor Devolución (PID: $DEV_PID)"
+    echo "  - Actor Renovación (PID: $REN_PID)"
+    echo "  - Actor Préstamo (PID: $PRES_PID)"
+    echo ""
+    echo "Para ejecutar cliente interactivo:"
+    echo "  ./cliente.sh"
+    echo ""
+    echo "======================================"
+    echo ""
+    
+    # Función para limpiar al salir
+    cleanup() {
+        echo ""
+        echo "Deteniendo sistema..."
+        kill $GA_PID $GC_PID $DEV_PID $REN_PID $PRES_PID 2>/dev/null
+        rm -f "$GA_LOG" "$GC_LOG" "$DEV_LOG" "$REN_LOG" "$PRES_LOG"
+        echo "Sistema detenido."
+        exit 0
+    }
+
+    trap cleanup SIGINT SIGTERM
+
+    # Mantener el script corriendo y mostrar salidas
+    echo "Monitoreando salidas del sistema (Ctrl+C para detener):"
+    echo "======================================"
+    tail -f "$GA_LOG" "$GC_LOG" "$DEV_LOG" "$REN_LOG" "$PRES_LOG" 2>/dev/null
+else
+    echo "  FALLO AL INICIAR SISTEMA           "
+    echo "======================================"
+    echo ""
+    echo "Componentes iniciados: $COMPONENTS_STARTED/5"
+    echo "Componentes fallidos: $COMPONENTS_FAILED/5"
+    echo ""
+    echo "DIAGNÓSTICO:"
+    echo "- Verifica que compilaste con: mvn clean compile"
+    echo "- Verifica que los archivos estén en src/main/java/"
+    echo "- Verifica que todas las clases tengan declaración de package"
+    echo ""
+    
+    # Detener procesos que sí iniciaron
     kill $GA_PID $GC_PID $DEV_PID $REN_PID $PRES_PID 2>/dev/null
-    echo "Sistema detenido."
-    exit 0
-}
-
-trap cleanup SIGINT SIGTERM
-
-# Mantener el script corriendo
-wait
-echo "  - Publisher (PUB): $PUB_PORT"
-echo "  - Replier (REP): $REP_PORT"
-echo "  - GA (TCP): $GA_PORT"
-echo ""
-echo "Para enviar peticiones desde clientes:"
-echo "  java -cp $CLASSPATH ClienteBatch_ZMQ src/peticiones2.txt ${GA_HOST}:${REP_PORT}"
-echo ""
+    rm -f "$GA_LOG" "$GC_LOG" "$DEV_LOG" "$REN_LOG" "$PRES_LOG"
+    exit 1
+fi
