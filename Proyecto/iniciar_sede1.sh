@@ -14,40 +14,81 @@ REP_PORT=5556
 GA_PORT=5560
 GA_HOST="localhost"
 
-# IP de la réplica (ajustar según tu red)
-REPLICA_HOST="10.43.102.177"  # Cambiar por IP de Sede 2
+# IP de la réplica
+REPLICA_HOST="10.43.102.177"
 REPLICA_PORT=6560
 
 # Classpath con dependencias
-CLASSPATH="target/classes:$HOME/.m2/repository/org/zeromq/jeromq/0.6.0/jeromq-0.6.0.jar"
+CP="target/classes:$HOME/.m2/repository/org/zeromq/jeromq/0.6.0/jeromq-0.6.0.jar"
 
 echo ""
-echo "[1/4] Iniciando Gestor de Almacenamiento (GA)..."
-gnome-terminal -- bash -c "cd $(pwd) && java -cp 'target/classes:$HOME/.m2/repository/org/zeromq/jeromq/0.6.0/jeromq-0.6.0.jar' Gestor_Almacenamiento.ServidorGA_TCP primary $GA_PORT $REPLICA_HOST $REPLICA_PORT; exec bash" &
-sleep 3
+echo "Iniciando todos los componentes en background..."
+echo ""
 
-echo "[2/4] Iniciando Gestor de Carga (GC)..."
-gnome-terminal -- bash -c "cd $(pwd) && java -cp 'target/classes:$HOME/.m2/repository/org/zeromq/jeromq/0.6.0/jeromq-0.6.0.jar' Gestor_carga.ServidorGC_ZMQ $SEDE $PUB_PORT $REP_PORT $GA_HOST $GA_PORT; exec bash" &
-sleep 3
+# Gestor de Almacenamiento (GA)
+echo "[1/5] Iniciando Gestor de Almacenamiento (GA)..."
+java -cp "$CP" Gestor_Almacenamiento.ServidorGA_TCP primary $GA_PORT $REPLICA_HOST $REPLICA_PORT > logs/ga_sede1.log 2>&1 &
+GA_PID=$!
+sleep 2
 
-echo "[3/4] Iniciando Actores..."
+# Gestor de Carga (GC)
+echo "[2/5] Iniciando Gestor de Carga (GC)..."
+java -cp "$CP" Gestor_carga.ServidorGC_ZMQ $SEDE $PUB_PORT $REP_PORT $GA_HOST $GA_PORT > logs/gc_sede1.log 2>&1 &
+GC_PID=$!
+sleep 2
 
-# Actor Devolución
-gnome-terminal -- bash -c "cd $(pwd) && java -cp 'target/classes:$HOME/.m2/repository/org/zeromq/jeromq/0.6.0/jeromq-0.6.0.jar' Gestor_carga.ActorClient_ZMQ ${GA_HOST}:${PUB_PORT} ${GA_HOST}:${GA_PORT} DEVOLUCION; exec bash" &
+# Actores
+echo "[3/5] Iniciando Actor Devolución..."
+java -cp "$CP" Gestor_carga.ActorClient_ZMQ ${GA_HOST}:${PUB_PORT} ${GA_HOST}:${GA_PORT} DEVOLUCION > logs/actor_devolucion.log 2>&1 &
+DEV_PID=$!
 sleep 1
 
-# Actor Renovación
-gnome-terminal -- bash -c "cd $(pwd) && java -cp 'target/classes:$HOME/.m2/repository/org/zeromq/jeromq/0.6.0/jeromq-0.6.0.jar' Gestor_carga.ActorClient_ZMQ ${GA_HOST}:${PUB_PORT} ${GA_HOST}:${GA_PORT} RENOVACION; exec bash" &
+echo "[4/5] Iniciando Actor Renovación..."
+java -cp "$CP" Gestor_carga.ActorClient_ZMQ ${GA_HOST}:${PUB_PORT} ${GA_HOST}:${GA_PORT} RENOVACION > logs/actor_renovacion.log 2>&1 &
+REN_PID=$!
 sleep 1
 
-# Actor Préstamo
-gnome-terminal -- bash -c "cd $(pwd) && java -cp 'target/classes:$HOME/.m2/repository/org/zeromq/jeromq/0.6.0/jeromq-0.6.0.jar' Gestor_carga.ActorPrestamo_ZMQ ${GA_HOST}:${PUB_PORT} ${GA_HOST}:${GA_PORT}; exec bash" &
+echo "[5/5] Iniciando Actor Préstamo..."
+java -cp "$CP" Gestor_carga.ActorPrestamo_ZMQ ${GA_HOST}:${PUB_PORT} ${GA_HOST}:${GA_PORT} > logs/actor_prestamo.log 2>&1 &
+PRES_PID=$!
 sleep 1
 
 echo ""
-echo "[4/4] Sistema iniciado correctamente!"
+echo "======================================"
+echo "  ✓ SISTEMA INICIADO EXITOSAMENTE    "
+echo "======================================"
 echo ""
-echo "Puertos configurados:"
+echo "Componentes activos:"
+echo "  - GA (PID: $GA_PID) - Puerto: $GA_PORT"
+echo "  - GC (PID: $GC_PID) - PUB: $PUB_PORT, REP: $REP_PORT"
+echo "  - Actor Devolución (PID: $DEV_PID)"
+echo "  - Actor Renovación (PID: $REN_PID)"
+echo "  - Actor Préstamo (PID: $PRES_PID)"
+echo ""
+echo "Logs guardados en: logs/"
+echo ""
+echo "Para ver los logs en tiempo real:"
+echo "  tail -f logs/ga_sede1.log"
+echo "  tail -f logs/gc_sede1.log"
+echo ""
+echo "Para detener todo el sistema:"
+echo "  kill $GA_PID $GC_PID $DEV_PID $REN_PID $PRES_PID"
+echo ""
+echo "Presiona Ctrl+C para detener el sistema..."
+
+# Función para limpiar al salir
+cleanup() {
+    echo ""
+    echo "Deteniendo sistema..."
+    kill $GA_PID $GC_PID $DEV_PID $REN_PID $PRES_PID 2>/dev/null
+    echo "Sistema detenido."
+    exit 0
+}
+
+trap cleanup SIGINT SIGTERM
+
+# Mantener el script corriendo
+wait
 echo "  - Publisher (PUB): $PUB_PORT"
 echo "  - Replier (REP): $REP_PORT"
 echo "  - GA (TCP): $GA_PORT"
