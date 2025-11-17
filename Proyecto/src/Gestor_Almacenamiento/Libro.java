@@ -52,15 +52,15 @@ public class Libro implements Serializable {
 
     /**
      * - Busca el primer ejemplar disponible ('D'), lo marca como prestado ('P')
-     *   y asigna una fecha de entrega (14 días a partir de hoy = 2 semanas).
+     *   y asigna una fecha de entrega (14 días a partir de hoy según requisitos).
      */
     public synchronized boolean prestar() {
         for (Ejemplar ej : ejemplares) {
             if (ej.getEstado() == 'D') {
                 ej.setEstado('P');
+                // Préstamo por 2 semanas (14 días) según requisitos del proyecto
                 String fechaEntrega = LocalDate.now().plusDays(14).format(fmt);
                 ej.setFecha(fechaEntrega);
-                ej.resetearRenovaciones(); // Reiniciar contador de renovaciones al prestar
                 return true;
             }
         }
@@ -69,14 +69,13 @@ public class Libro implements Serializable {
 
     /**
      * - Busca un ejemplar marcado como prestado ('P'), lo marca como disponible ('D')
-     *   y limpia la fecha y contador de renovaciones.
+     *   y limpia la fecha.
      */
     public synchronized boolean devolver() {
         for (Ejemplar ej : ejemplares) {
             if (ej.getEstado() == 'P') {
                 ej.setEstado('D');
                 ej.setFecha("");
-                ej.resetearRenovaciones();
                 return true;
             }
         }
@@ -84,21 +83,21 @@ public class Libro implements Serializable {
     }
 
     /**
-     * - Extiende la fecha de un ejemplar prestado por 7 días (1 semana adicional).
-     * - Valida que no se hayan superado las 2 renovaciones permitidas.
+     * - Extiende la fecha de un ejemplar prestado por 7 días.
+     * - Valida que no se superen las 2 renovaciones máximas permitidas.
      */
     public synchronized boolean renovar() {
         for (Ejemplar ej : ejemplares) {
             if (ej.getEstado() == 'P') {
-                // Validar que no se supere el límite de 2 renovaciones
-                if (ej.getContadorRenovaciones() >= 2) {
-                    System.out.println("ERROR: Se alcanzó el límite de 2 renovaciones para el libro " + codigo);
+                // Validar que no se hayan superado las 2 renovaciones
+                if (!ej.puedeRenovar()) {
+                    System.out.println("Renovación denegada: máximo de 2 renovaciones alcanzado");
                     return false;
                 }
                 String nuevaFecha = LocalDate.now().plusDays(7).format(fmt);
                 ej.setFecha(nuevaFecha);
                 ej.incrementarRenovaciones();
-                System.out.println("Renovación exitosa. Renovaciones realizadas: " + ej.getContadorRenovaciones() + "/2");
+                System.out.println("Renovación exitosa. Contador: " + ej.getContadorRenovaciones() + "/2");
                 return true;
             }
         }

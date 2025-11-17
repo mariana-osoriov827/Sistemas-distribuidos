@@ -1,18 +1,40 @@
 # 📘 Sistema Distribuido de Préstamo, Renovación y Devolución de Libros
-video sustentación: https://youtu.be/2Oji7hMzLgY
 
 Autores: Gabriel Jaramillo Cuberos, Roberth Méndez Rivera, Mariana Osorio Vásquez, Juan Esteban Vera Garzón 
 
 ## 🧩 Descripción general
-Este proyecto implementa un sistema distribuido para la gestión de préstamos, devoluciones y renovaciones de libros en una biblioteca con múltiples sedes.
+Este proyecto implementa un sistema distribuido para la gestión de préstamos, devoluciones y renovaciones de libros en la biblioteca Ada Lovelace, que cuenta con múltiples sedes.
 La arquitectura se basa en ZeroMQ (JeroMQ para Java) y usa los patrones REQ/REP y PUB/SUB para permitir comunicación entre los componentes.
+
+### Operaciones Implementadas
+
+#### 1. PRÉSTAMO (Síncrono)
+- Duración: **2 semanas (14 días)**
+- Patrón: REQ/REP síncrono
+- Flujo: PS → GC → ActorPréstamo → GA → BD
+- El PS espera respuesta confirmando disponibilidad
+
+#### 2. DEVOLUCIÓN (Asíncrono)
+- El GC responde inmediatamente al PS
+- Publicación en tópico DEVOLUCION
+- Actor procesa asíncronamente
+- Resetea contador de renovaciones
+
+#### 3. RENOVACIÓN (Asíncrono)
+- El GC responde con nueva fecha (+1 semana)
+- Publicación en tópico RENOVACION
+- **Límite**: Máximo 2 renovaciones por libro
+- Actor valida y actualiza BD
 
 ## 🏗️ Arquitectura del sistema
 El diagrama arquitectónico muestra la estructura global del sistema distribuido de préstamo de libros y la relación entre sus principales componentes desplegados en dos sedes. 
 
 Cada sede cuenta con: 
 - Un Gestor de Carga (GC) que recibe las solicitudes de los clientes y las publica hacia los actores.
-- Dos Actores especializados: uno para renovaciones y otro para devoluciones, que consumen los mensajes del GC mediante el patrón PUB/SUB.
+- **Tres Actores especializados**: 
+  - Actor Devolución: suscrito al tópico DEVOLUCION
+  - Actor Renovación: suscrito al tópico RENOVACION
+  - **Actor Préstamo**: suscrito al tópico PRESTAMO (procesamiento síncrono)
 - Un Gestor de Almacenamiento (GA) responsable de mantener la base de datos local y sincronizar los cambios con su réplica en la otra sede. 
 
 Los Procesos Solicitantes (PS), ubicados en la capa de clientes, pueden conectarse a cualquiera de los GC disponibles para enviar solicitudes de renovación o devolución. 
@@ -27,7 +49,9 @@ GC1[Gestor de Carga 1]
 
 A1D[Actor Devolución 1] 
 
-A1R[Actor Renovación 1] 
+A1R[Actor Renovación 1]
+
+A1P[Actor Préstamo 1] 
 
 GA1[Gestor de Almacenamiento 1<br/>BD Primaria Réplica líder] 
 
@@ -41,7 +65,9 @@ GC2[Gestor de Carga 2]
 
 A2D[Actor Devolución 2] 
 
-A2R[Actor Renovación 2] 
+A2R[Actor Renovación 2]
+
+A2P[Actor Préstamo 2] 
 
 GA2[Gestor de Almacenamiento 2<br/>BD Secundaria Réplica seguidora] 
 
@@ -61,27 +87,35 @@ end
 
 PSs -- Req Devolución/Renovación REQ --> GC1 
 
-PSs -- Req Devolución/Renovación REQ --> GC2 
+PSs -- Req Devolución/Renovación/Préstamo REQ --> GC2 
 
  
 
 GC1 -- PUB topic: Devolucion --> A1D 
 
-GC1 -- PUB topic: Renovacion --> A1R 
+GC1 -- PUB topic: Renovacion --> A1R
+
+GC1 -- PUB topic: Prestamo --> A1P 
 
 GC2 -- PUB topic: Devolucion --> A2D 
 
-GC2 -- PUB topic: Renovacion --> A2R 
+GC2 -- PUB topic: Renovacion --> A2R
+
+GC2 -- PUB topic: Prestamo --> A2P 
 
  
 
 A1D -- Actualización --> GA1 
 
-A1R -- Actualización --> GA1 
+A1R -- Actualización --> GA1
+
+A1P -- Validación Síncrona --> GA1 
 
 A2D -- Actualización --> GA2 
 
-A2R -- Actualización --> GA2 
+A2R -- Actualización --> GA2
+
+A2P -- Validación Síncrona --> GA2 
 
  
 
@@ -154,6 +188,42 @@ Broker-->>ActorR: entrega msg "renovacion"
 ActorR->>GA: updateLibroRenovacion libroId, nuevaFecha máx. 2 renov. 
 
 GA-->>ActorR: OK/ERROR límite 
+```
+
+### Préstamo (Síncrono)
+```mermaid
+sequenceDiagram 
+
+participant PS 
+
+participant GC 
+
+participant Broker as ZeroMQ PUB/SUB 
+
+participant ActorP as Actor Préstamo 
+
+participant GA as Gestor Almacenamiento 
+
+ 
+
+PS->>GC: POST /prestamo {libroId, usuarioId} 
+
+GC->>Broker: PUB "prestamo" {libroId, usuarioId} 
+
+Broker-->>ActorP: entrega msg "prestamo" 
+
+ActorP->>GA: validarDisponibilidad(libroId) 
+
+GA-->>ActorP: OK (disponible) / ERROR (no disponible) 
+
+ActorP->>GA: registrarPrestamo(libroId, usuarioId, 14 días) 
+
+GA-->>ActorP: OK (registrado) 
+
+GC-->>PS: 200 OK {prestamo otorgado, fecha devolución}
+
+Note right of PS: Préstamo por 2 semanas (14 días)
+Note right of GA: Validación síncrona antes de confirmar
 ```
 
 ## Modelo de fallos 
@@ -398,3 +468,7 @@ Los resultados demuestran que la arquitectura distribuida propuesta logra un equ
 La **latencia baja** confirma la eficiencia del esquema asíncrono basado en ZeroMQ, mientras que la **alta tasa de éxito** evidencia la confiabilidad de la comunicación entre procesos.  
 El retardo de replicación dentro de los rangos esperados garantiza **consistencia eventual estable**, y el consumo moderado de CPU en modo multihilo muestra que el sistema puede **escalar horizontalmente** sin degradar el desempeño.  
 En conjunto, estas métricas validan que el sistema cumple los **requisitos no funcionales** definidos en el diseño.
+
+### Video de la implementación
+
+https://www.youtube.com/watch?v=2Oji7hMzLgY

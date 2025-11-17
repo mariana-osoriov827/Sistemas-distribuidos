@@ -16,8 +16,8 @@ public class Ejemplar implements Serializable {
     private static final long serialVersionUID = 1L;
     private int id;
     private char estado; 
-    private String fecha; 
-    private int contadorRenovaciones; // Contador de renovaciones (máximo 2)
+    private String fecha;
+    private int contadorRenovaciones; // Máximo 2 renovaciones permitidas
 
     public Ejemplar(int id, char estado, String fecha) {
         this.id = id;
@@ -31,9 +31,22 @@ public class Ejemplar implements Serializable {
     public String getFecha() { return fecha; }
     public int getContadorRenovaciones() { return contadorRenovaciones; }
 
-    public void setEstado(char estado) { this.estado = estado; }
+    public void setEstado(char estado) { 
+        this.estado = estado;
+        // Resetear contador de renovaciones cuando se devuelve
+        if (estado == 'D') {
+            this.contadorRenovaciones = 0;
+        }
+    }
+    
     public void setFecha(String fecha) { this.fecha = fecha; }
-    public void incrementarRenovaciones() { this.contadorRenovaciones++; }
-    public void resetearRenovaciones() { this.contadorRenovaciones = 0; }
+    
+    public boolean puedeRenovar() {
+        return contadorRenovaciones < 2;
+    }
+    
+    public void incrementarRenovaciones() {
+        this.contadorRenovaciones++;
+    }
 }
 

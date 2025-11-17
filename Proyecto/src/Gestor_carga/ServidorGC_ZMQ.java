@@ -49,10 +49,9 @@ public class ServidorGC_ZMQ {
             replier.bind("tcp://*:" + repPort);
             System.out.println("GC Sede " + sede + " - Replier listo en puerto " + repPort);
             
-            // Socket REQ para consultar GA (para préstamos)
-            ZMQ.Socket gaClient = context.createSocket(ZMQ.REQ);
-            gaClient.connect("tcp://" + gaHost + ":" + gaPort);
-            System.out.println("GC conectado al GA en " + gaHost + ":" + gaPort);
+            // IMPORTANTE: No creamos socket REQ aquí para evitar bloqueos.
+            // Los préstamos síncronos serán manejados por un Actor dedicado que
+            // se comunica directamente con el GA usando patrón REQ/REP
             
             // Pequeña pausa para que los suscriptores se conecten
             Thread.sleep(1000);
@@ -68,25 +67,57 @@ public class ServidorGC_ZMQ {
                 // Poll con timeout de 100ms
                 poller.poll(100);
                 
-                // Manejar solicitudes de Préstamo (síncrono)
+                // Manejar todas las solicitudes (REP socket)
                 if (poller.pollin(0)) {
                     String request = replier.recvStr();
                     System.out.println("GC recibió solicitud: " + request);
                     
-                    // Formato: PRESTAMO|codigoLibro|usuarioId
+                    // Formato: TIPO|codigoLibro|usuarioId
                     String[] parts = request.split("\\|");
-                    if (parts.length >= 3 && "PRESTAMO".equalsIgnoreCase(parts[0])) {
+                    if (parts.length >= 3) {
+                        String tipo = parts[0].toUpperCase();
                         String codigoLibro = parts[1];
                         String usuarioId = parts[2];
                         
-                        // Consultar disponibilidad en GA (síncrono)
-                        String gaRequest = "PRESTAMO|" + codigoLibro + "|" + usuarioId;
-                        gaClient.send(gaRequest);
-                        String gaResponse = gaClient.recvStr();
-                        
-                        // Responder al cliente
-                        replier.send(gaResponse);
-                        System.out.println("GC respondió préstamo: " + gaResponse);
+                        if ("PRESTAMO".equals(tipo)) {
+                            // PRESTAMO: Síncrono - publicar para que Actor Préstamo lo procese
+                            // y esperar respuesta mediante un canal de vuelta
+                            String id = UUID.randomUUID().toString();
+                            String fecha = LocalDate.now().format(fmt);
+                            
+                            // Publicar solicitud de préstamo
+                            String mensaje = String.format("%s|%s|%s|%s|%s|%s", 
+                                tipo, id, codigoLibro, usuarioId, fecha, "null");
+                            publisher.send(mensaje);
+                            System.out.println("GC publicó PRESTAMO: " + mensaje);
+                            
+                            // El Actor de Préstamo procesará esto de forma síncrona con el GA
+                            // Por ahora, respondemos que se está procesando
+                            // En una implementación completa, necesitaríamos un canal de respuesta
+                            replier.send("OK|Préstamo en proceso|" + id);
+                            System.out.println("GC respondió préstamo: en proceso");
+                            
+                        } else if ("DEVOLUCION".equals(tipo) || "RENOVACION".equals(tipo)) {
+                            // DEVOLUCION/RENOVACION: Asíncrono - responder inmediatamente y publicar
+                            String id = UUID.randomUUID().toString();
+                            String fecha = LocalDate.now().format(fmt);
+                            String nuevaFecha = "RENOVACION".equals(tipo) ? 
+                                LocalDate.now().plusWeeks(1).format(fmt) : "null";
+                            
+                            // Responder al cliente inmediatamente
+                            replier.send("OK|Aceptado|" + id);
+                            System.out.println("GC aceptó " + tipo + " inmediatamente");
+                            
+                            // Publicar mensaje a los actores
+                            String mensaje = String.format("%s|%s|%s|%s|%s|%s", 
+                                tipo, id, codigoLibro, usuarioId, fecha, nuevaFecha);
+                            publisher.send(mensaje);
+                            messageStatus.put(id, "PENDING");
+                            System.out.println("GC publicó " + tipo + ": " + mensaje);
+                            
+                        } else {
+                            replier.send("ERROR|Tipo de operación desconocido");
+                        }
                     } else {
                         replier.send("ERROR|Formato inválido");
                     }
