@@ -12,6 +12,8 @@
 * - Permite que tanto los Clientes como los Actores se conecten a este 
 * punto central para el flujo de mensajes asíncronos.
 ***************************************************************************************/
+package Gestor_carga;
+
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 

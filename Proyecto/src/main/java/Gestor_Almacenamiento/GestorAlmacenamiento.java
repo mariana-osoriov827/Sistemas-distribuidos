@@ -10,6 +10,8 @@
 * - Incluye métodos para la aplicación de Devolución y Renovación, así como 
 * para la replicación de cambios con el GA de la otra sede.
 ***************************************************************************************/
+package Gestor_Almacenamiento;
+
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 

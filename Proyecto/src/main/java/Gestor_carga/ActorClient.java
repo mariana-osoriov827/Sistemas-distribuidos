@@ -8,6 +8,8 @@
  * - Consume mensajes del Gestor de Carga (GC) mediante polling RMI y aplica operaciones
  *   en el Gestor de Almacenamiento (GA).
  ***************************************************************************************/
+package Gestor_carga;
+
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 

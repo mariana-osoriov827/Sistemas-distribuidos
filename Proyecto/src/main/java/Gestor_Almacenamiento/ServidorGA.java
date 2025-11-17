@@ -13,6 +13,8 @@
 * - Incluye un Shutdown Hook para asegurar la persistencia de los datos en el archivo 
 * al cerrar el servidor.
 ***************************************************************************************/
+package Gestor_Almacenamiento;
+
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 

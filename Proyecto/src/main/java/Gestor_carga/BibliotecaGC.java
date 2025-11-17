@@ -6,6 +6,8 @@
  * Descripción:
  * - Interfaz RMI del Gestor de Carga (GC) con métodos asíncronos (devolver/renovar/prestar).
  ***************************************************************************************/
+package Gestor_carga;
+
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 
