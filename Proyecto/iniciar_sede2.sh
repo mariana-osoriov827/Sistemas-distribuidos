@@ -17,35 +17,39 @@ GA_HOST="localhost"
 # Classpath con dependencias
 CP="target/classes:$HOME/.m2/repository/org/zeromq/jeromq/0.6.0/jeromq-0.6.0.jar"
 
+# Crear directorio de logs si no existe
+mkdir -p logs
+
 echo ""
-echo "Iniciando todos los componentes en background..."
+echo "Iniciando sistema..."
+echo "Todas las operaciones se mostrarán en esta terminal"
 echo ""
 
 # Gestor de Almacenamiento (GA) Réplica
 echo "[1/5] Iniciando Gestor de Almacenamiento (GA) Réplica..."
-java -cp "$CP" Gestor_Almacenamiento.ServidorGA_TCP replica $GA_PORT > logs/ga_sede2.log 2>&1 &
+java -cp "$CP" Gestor_Almacenamiento.ServidorGA_TCP replica $GA_PORT &
 GA_PID=$!
 sleep 2
 
 # Gestor de Carga (GC)
 echo "[2/5] Iniciando Gestor de Carga (GC)..."
-java -cp "$CP" Gestor_carga.ServidorGC_ZMQ $SEDE $PUB_PORT $REP_PORT $GA_HOST $GA_PORT > logs/gc_sede2.log 2>&1 &
+java -cp "$CP" Gestor_carga.ServidorGC_ZMQ $SEDE $PUB_PORT $REP_PORT $GA_HOST $GA_PORT &
 GC_PID=$!
 sleep 2
 
 # Actores
 echo "[3/5] Iniciando Actor Devolución..."
-java -cp "$CP" Gestor_carga.ActorClient_ZMQ ${GA_HOST}:${PUB_PORT} ${GA_HOST}:${GA_PORT} DEVOLUCION > logs/actor_devolucion.log 2>&1 &
+java -cp "$CP" Gestor_carga.ActorClient_ZMQ ${GA_HOST}:${PUB_PORT} ${GA_HOST}:${GA_PORT} DEVOLUCION &
 DEV_PID=$!
 sleep 1
 
 echo "[4/5] Iniciando Actor Renovación..."
-java -cp "$CP" Gestor_carga.ActorClient_ZMQ ${GA_HOST}:${PUB_PORT} ${GA_HOST}:${GA_PORT} RENOVACION > logs/actor_renovacion.log 2>&1 &
+java -cp "$CP" Gestor_carga.ActorClient_ZMQ ${GA_HOST}:${PUB_PORT} ${GA_HOST}:${GA_PORT} RENOVACION &
 REN_PID=$!
 sleep 1
 
 echo "[5/5] Iniciando Actor Préstamo..."
-java -cp "$CP" Gestor_carga.ActorPrestamo_ZMQ ${GA_HOST}:${PUB_PORT} ${GA_HOST}:${GA_PORT} > logs/actor_prestamo.log 2>&1 &
+java -cp "$CP" Gestor_carga.ActorPrestamo_ZMQ ${GA_HOST}:${PUB_PORT} ${GA_HOST}:${GA_PORT} &
 PRES_PID=$!
 sleep 1
 
@@ -61,16 +65,9 @@ echo "  - Actor Devolución (PID: $DEV_PID)"
 echo "  - Actor Renovación (PID: $REN_PID)"
 echo "  - Actor Préstamo (PID: $PRES_PID)"
 echo ""
-echo "Logs guardados en: logs/"
+echo "Todas las operaciones se mostrarán aquí abajo:"
+echo "======================================"
 echo ""
-echo "Para ver los logs en tiempo real:"
-echo "  tail -f logs/ga_sede2.log"
-echo "  tail -f logs/gc_sede2.log"
-echo ""
-echo "Para detener todo el sistema:"
-echo "  kill $GA_PID $GC_PID $DEV_PID $REN_PID $PRES_PID"
-echo ""
-echo "Presiona Ctrl+C para detener el sistema..."
 
 # Función para limpiar al salir
 cleanup() {
