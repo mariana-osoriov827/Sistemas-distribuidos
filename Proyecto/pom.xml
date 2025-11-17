@@ -25,7 +25,6 @@
     </dependencies>
 
     <build>
-        <sourceDirectory>src</sourceDirectory>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -34,9 +33,6 @@
                 <configuration>
                     <source>17</source>
                     <target>17</target>
-                    <includes>
-                        <include>**/*.java</include>
-                    </includes>
                 </configuration>
             </plugin>
         </plugins>
