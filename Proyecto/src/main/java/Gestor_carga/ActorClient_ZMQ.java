@@ -47,6 +47,11 @@ public class ActorClient_ZMQ {
             System.out.println("Actor suscrito a tópico " + topic + " en " + gcHost + ":" + gcPubPort);
             System.out.println("Actor conectado al GA en " + gaHost + ":" + gaPort);
             
+            // Socket PUSH para reportar resultados al GC (puerto REP + 2)
+            ZMQ.Socket resultPusher = context.createSocket(ZMQ.PUSH);
+            resultPusher.connect("tcp://" + gcHost + ":" + (gcPubPort + 1));
+            System.out.println("Actor reportará resultados en puerto " + (gcPubPort + 1));
+            
             while (!Thread.currentThread().isInterrupted()) {
                 
                 // Recibir mensaje del GC
@@ -86,27 +91,14 @@ public class ActorClient_ZMQ {
                     System.err.println("Error conectando al GA: " + e.getMessage());
                 }
                 
-                // Reportar resultado al GC
-                reportarResultadoAGC(gcHost, gcPubPort - 1, messageId, ok ? "SUCCESS" : "FAILED", tipo);
+                // Reportar resultado al GC usando PUSH
+                String resultMsg = "RESULT|" + messageId + "|" + (ok ? "SUCCESS" : "FAILED") + "|" + tipo;
+                resultPusher.send(resultMsg);
+                System.out.println("Actor reportó: " + resultMsg);
             }
             
         } catch (Exception e) {
             e.printStackTrace();
-        }
-    }
-    
-    /**
-     * Reporta el resultado de la operación al GC para que lo almacene
-     */
-    private static void reportarResultadoAGC(String gcHost, int gcRepPort, String messageId, String status, String tipo) {
-        try (ZContext reportContext = new ZContext()) {
-            ZMQ.Socket reporter = reportContext.createSocket(ZMQ.REQ);
-            reporter.connect("tcp://" + gcHost + ":" + gcRepPort);
-            reporter.send("RESULT|" + messageId + "|" + status + "|" + tipo);
-            reporter.recvStr(); // Recibir confirmación
-            reporter.close();
-        } catch (Exception e) {
-            System.err.println("Error reportando resultado al GC: " + e.getMessage());
         }
     }
 }

@@ -50,6 +50,12 @@ public class ServidorGC_ZMQ {
             replier.bind("tcp://*:" + repPort);
             System.out.println("GC Sede " + sede + " - Replier listo en puerto " + repPort);
             
+            // Socket PULL para recibir resultados de actores
+            int resultPort = Integer.parseInt(pubPort) + 1;
+            ZMQ.Socket resultPuller = context.createSocket(ZMQ.PULL);
+            resultPuller.bind("tcp://*:" + resultPort);
+            System.out.println("GC Sede " + sede + " - Result Puller listo en puerto " + resultPort);
+            
             // IMPORTANTE: No creamos socket REQ aquí para evitar bloqueos.
             // Los préstamos síncronos serán manejados por un Actor dedicado que
             // se comunica directamente con el GA usando patrón REQ/REP
@@ -58,8 +64,9 @@ public class ServidorGC_ZMQ {
             Thread.sleep(1000);
             
             // Poller para manejar múltiples sockets
-            ZMQ.Poller poller = context.createPoller(1);
+            ZMQ.Poller poller = context.createPoller(2);
             poller.register(replier, ZMQ.Poller.POLLIN);
+            poller.register(resultPuller, ZMQ.Poller.POLLIN);
             
             System.out.println("ServidorGC_ZMQ Sede " + sede + " corriendo...\n");
             
@@ -67,6 +74,20 @@ public class ServidorGC_ZMQ {
                 
                 // Poll con timeout de 100ms
                 poller.poll(100);
+                
+                // Manejar resultados de actores (PULL socket)
+                if (poller.pollin(1)) {
+                    String resultMsg = resultPuller.recvStr();
+                    // Formato: RESULT|messageId|status|tipo
+                    String[] resultParts = resultMsg.split("\\|");
+                    if (resultParts.length >= 4) {
+                        String msgId = resultParts[1];
+                        String status = resultParts[2];
+                        String tipo = resultParts[3];
+                        messageStatus.put(msgId, status);
+                        System.out.println("GC registró resultado " + tipo + " [" + msgId + "]: " + status);
+                    }
+                }
                 
                 // Manejar todas las solicitudes (REP socket)
                 if (poller.pollin(0)) {
@@ -91,15 +112,6 @@ public class ServidorGC_ZMQ {
                             String status = messageStatus.getOrDefault(messageId, "PENDING");
                             replier.send("STATUS|" + status);
                             System.out.println("GC respondió STATUS para " + messageId + ": " + status);
-                            
-                        } else if ("RESULT".equals(tipo) && parts.length >= 4) {
-                            // RESULT: Actor reportando resultado de operación
-                            String messageId = parts[1];
-                            String status = parts[2]; // SUCCESS o FAILED
-                            String operationType = parts[3];
-                            messageStatus.put(messageId, status);
-                            replier.send("OK|Resultado registrado");
-                            System.out.println("GC registró resultado " + operationType + " [" + messageId + "]: " + status);
                             
                         } else if ("CANCEL".equals(tipo)) {
                             // CANCEL: Cliente canceló operación

@@ -24,6 +24,8 @@ public class ServidorGA_TCP {
     // Replicación asíncrona
     private final BlockingQueue<String> colaReplicacion = new LinkedBlockingQueue<>();
     private final ScheduledExecutorService replicaScheduler = Executors.newScheduledThreadPool(1);
+    private boolean replicaDisponible = true;
+    private int intentosFallidos = 0;
     
     public ServidorGA_TCP(String role, int port, String replicaHost, Integer replicaPort) {
         this.role = role;
@@ -156,10 +158,25 @@ public class ServidorGA_TCP {
                 String ack = in.readLine();
                 replicadas++;
             }
-            System.out.println("Replicadas " + replicadas + " operaciones a la réplica");
+            
+            if (replicadas > 0) {
+                System.out.println("Replicadas " + replicadas + " operaciones a la réplica");
+            }
+            
+            // Resetear contador de fallos si tuvo éxito
+            if (!replicaDisponible && replicadas > 0) {
+                System.out.println("Réplica reconectada exitosamente");
+            }
+            replicaDisponible = true;
+            intentosFallidos = 0;
             
         } catch (Exception e) {
-            System.err.println("Error replicando: " + e.getMessage());
+            intentosFallidos++;
+            // Solo mostrar error cada 10 intentos fallidos
+            if (replicaDisponible || intentosFallidos % 10 == 0) {
+                System.err.println("Réplica no disponible (intento " + intentosFallidos + "): " + e.getMessage());
+            }
+            replicaDisponible = false;
         }
     }
     
