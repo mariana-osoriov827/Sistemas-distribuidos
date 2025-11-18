@@ -41,9 +41,14 @@ public class ServidorGA_TCP {
             System.out.println("No se pudo cargar libros.txt, BD vacía.");
         }
         
-        // Iniciar replicación si es primario
+        // Iniciar replicación solo si es primario Y la réplica responde
         if ("primary".equalsIgnoreCase(role) && replicaHost != null) {
-            iniciarReplicacionAsincrona();
+            if (probarConexionReplica()) {
+                iniciarReplicacionAsincrona();
+                System.out.println("Replicación activa hacia " + replicaHost + ":" + replicaPort);
+            } else {
+                System.out.println("[AVISO] Réplica no disponible - Replicación desactivada");
+            }
         }
     }
     
@@ -99,6 +104,11 @@ public class ServidorGA_TCP {
                     String nombreLibro = bd.obtenerNombreLibro(codigoLibro);
                     respuesta = nombreLibro != null ? "OK|" + nombreLibro : "FAILED|Libro no encontrado";
                     break;
+                
+                case "VALIDAR_PRESTAMO":
+                    boolean tienePrestamo = bd.tienePrestamo(codigoLibro);
+                    respuesta = "OK|" + tienePrestamo;
+                    break;
                     
                 case "PRESTAMO":
                     resultado = bd.prestarEjemplar(codigoLibro);
@@ -146,6 +156,15 @@ public class ServidorGA_TCP {
         }, 3, 3, TimeUnit.SECONDS);
     }
     
+    private boolean probarConexionReplica() {
+        try (Socket socket = new Socket()) {
+            socket.connect(new InetSocketAddress(replicaHost, replicaPort), 1000);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+    
     private void procesarColaReplicacion() {
         int replicadas = 0;
         try (Socket socket = new Socket(replicaHost, replicaPort);
@@ -172,11 +191,8 @@ public class ServidorGA_TCP {
             
         } catch (Exception e) {
             intentosFallidos++;
-            // Solo mostrar error cada 10 intentos fallidos
-            if (replicaDisponible || intentosFallidos % 10 == 0) {
-                System.err.println("Réplica no disponible (intento " + intentosFallidos + "): " + e.getMessage());
-            }
             replicaDisponible = false;
+            // NO mostrar ningún mensaje de error
         }
     }
     

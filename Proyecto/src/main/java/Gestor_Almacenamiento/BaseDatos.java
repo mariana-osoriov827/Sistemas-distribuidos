@@ -144,4 +144,11 @@ public class BaseDatos {
         Libro l = libros.get(codigoLibro);
         return l != null ? l.getNombre() : null;
     }
+    
+    // Verifica si el libro tiene al menos un ejemplar prestado
+    public boolean tienePrestamo(String codigo) {
+        Libro l = libros.get(codigo);
+        if (l == null) return false;
+        return l.getEjemplares().stream().anyMatch(e -> e.getEstado() == 'P');
+    }
 }

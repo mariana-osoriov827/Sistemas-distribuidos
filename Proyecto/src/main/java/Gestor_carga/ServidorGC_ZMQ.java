@@ -141,22 +141,28 @@ public class ServidorGC_ZMQ {
                             System.out.println("GC respondió préstamo: en proceso");
                             
                         } else if ("DEVOLUCION".equals(tipo) || "RENOVACION".equals(tipo)) {
-                            // DEVOLUCION/RENOVACION: Asíncrono - responder inmediatamente y publicar
-                            String id = UUID.randomUUID().toString();
-                            String fecha = LocalDate.now().format(fmt);
-                            String nuevaFecha = "RENOVACION".equals(tipo) ? 
-                                LocalDate.now().plusWeeks(1).format(fmt) : "null";
-                            
-                            // Responder al cliente inmediatamente
-                            replier.send("OK|Aceptado|" + id);
-                            System.out.println("GC aceptó " + tipo + " inmediatamente");
-                            
-                            // Publicar mensaje a los actores
-                            String mensaje = String.format("%s|%s|%s|%s|%s|%s", 
-                                tipo, id, codigoLibro, usuarioId, fecha, nuevaFecha);
-                            publisher.send(mensaje);
-                            messageStatus.put(id, "PENDING");
-                            System.out.println("GC publicó " + tipo + ": " + mensaje);
+                            // DEVOLUCION/RENOVACION: Validar que el libro esté prestado ANTES de aceptar
+                            if (!validarPrestamo(codigoLibro)) {
+                                replier.send("ERROR|El libro " + codigoLibro + " no está prestado");
+                                System.out.println("GC rechazó " + tipo + ": libro no prestado");
+                            } else {
+                                // Validación exitosa - procesar asíncronamente
+                                String id = UUID.randomUUID().toString();
+                                String fecha = LocalDate.now().format(fmt);
+                                String nuevaFecha = "RENOVACION".equals(tipo) ? 
+                                    LocalDate.now().plusWeeks(1).format(fmt) : "null";
+                                
+                                // Responder al cliente inmediatamente
+                                replier.send("OK|Aceptado|" + id);
+                                System.out.println("GC aceptó " + tipo + " inmediatamente");
+                                
+                                // Publicar mensaje a los actores
+                                String mensaje = String.format("%s|%s|%s|%s|%s|%s", 
+                                    tipo, id, codigoLibro, usuarioId, fecha, nuevaFecha);
+                                publisher.send(mensaje);
+                                messageStatus.put(id, "PENDING");
+                                System.out.println("GC publicó " + tipo + ": " + mensaje);
+                            }
                             
                         } else {
                             replier.send("ERROR|Tipo de operación desconocido");
@@ -197,6 +203,27 @@ public class ServidorGC_ZMQ {
             
         } catch (Exception e) {
             return "ERROR|No se pudo consultar información del libro: " + e.getMessage();
+        }
+    }
+    
+    /**
+     * Valida si el libro tiene un préstamo activo
+     */
+    private boolean validarPrestamo(String codigoLibro) {
+        try {
+            java.net.Socket socket = new java.net.Socket(gaHost, gaPort);
+            java.io.PrintWriter out = new java.io.PrintWriter(socket.getOutputStream(), true);
+            java.io.BufferedReader in = new java.io.BufferedReader(
+                new java.io.InputStreamReader(socket.getInputStream()));
+            
+            out.println("VALIDAR_PRESTAMO|" + codigoLibro + "|system");
+            String response = in.readLine();
+            
+            socket.close();
+            return response != null && response.startsWith("OK|true");
+            
+        } catch (Exception e) {
+            return false;
         }
     }
     

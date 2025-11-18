@@ -110,6 +110,12 @@ public class ClienteInteractivo_ZMQ {
                 requester.send(operacion);
                 String response = requester.recvStr();
                 
+                // Si hay error, mostrarlo y no continuar
+                if (response.startsWith("ERROR")) {
+                    System.out.println("\n" + formatResponse(response));
+                    continue;
+                }
+                
                 System.out.println("\n" + formatResponse(response));
                 
                 // Si es operación asíncrona (DEVOLUCION o RENOVACION), esperar y consultar estado
