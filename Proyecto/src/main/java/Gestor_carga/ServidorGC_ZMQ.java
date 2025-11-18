@@ -50,8 +50,8 @@ public class ServidorGC_ZMQ {
             replier.bind("tcp://*:" + repPort);
             System.out.println("GC Sede " + sede + " - Replier listo en puerto " + repPort);
             
-            // Socket PULL para recibir resultados de actores
-            int resultPort = Integer.parseInt(pubPort) + 1;
+            // Socket PULL para recibir resultados de actores (REP + 1)
+            int resultPort = Integer.parseInt(repPort) + 1;
             ZMQ.Socket resultPuller = context.createSocket(ZMQ.PULL);
             resultPuller.bind("tcp://*:" + resultPort);
             System.out.println("GC Sede " + sede + " - Result Puller listo en puerto " + resultPort);
