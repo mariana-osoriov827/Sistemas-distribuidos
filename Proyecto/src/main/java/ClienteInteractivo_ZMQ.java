@@ -111,6 +111,33 @@ public class ClienteInteractivo_ZMQ {
                 String response = requester.recvStr();
                 
                 System.out.println("\n" + formatResponse(response));
+                
+                // Si es operación asíncrona (DEVOLUCION o RENOVACION), esperar y consultar estado
+                if ((opcion.equals("2") || opcion.equals("3")) && response.contains("Aceptado|")) {
+                    String[] responseParts = response.split("\\|");
+                    if (responseParts.length >= 3) {
+                        String messageId = responseParts[2];
+                        System.out.println("\nEsperando resultado de la operación...");
+                        
+                        // Esperar 2 segundos para que el actor procese
+                        Thread.sleep(2000);
+                        
+                        // Consultar estado
+                        requester.send("STATUS|" + messageId);
+                        String statusResponse = requester.recvStr();
+                        
+                        if (statusResponse.startsWith("STATUS|")) {
+                            String status = statusResponse.substring(7);
+                            if ("SUCCESS".equals(status)) {
+                                System.out.println("[ÉXITO] La operación se completó exitosamente");
+                            } else if ("FAILED".equals(status)) {
+                                System.out.println("[FALLÓ] La operación no se pudo completar");
+                            } else {
+                                System.out.println("[INFO] Estado: " + status);
+                            }
+                        }
+                    }
+                }
             }
             
         } catch (Exception e) {

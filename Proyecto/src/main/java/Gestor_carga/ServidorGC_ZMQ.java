@@ -85,6 +85,22 @@ public class ServidorGC_ZMQ {
                             replier.send(infoLibro);
                             System.out.println("GC respondió INFO: " + infoLibro);
                             
+                        } else if ("STATUS".equals(tipo) && parts.length >= 2) {
+                            // STATUS: Consultar estado de operación asíncrona
+                            String messageId = parts[1];
+                            String status = messageStatus.getOrDefault(messageId, "PENDING");
+                            replier.send("STATUS|" + status);
+                            System.out.println("GC respondió STATUS para " + messageId + ": " + status);
+                            
+                        } else if ("RESULT".equals(tipo) && parts.length >= 4) {
+                            // RESULT: Actor reportando resultado de operación
+                            String messageId = parts[1];
+                            String status = parts[2]; // SUCCESS o FAILED
+                            String operationType = parts[3];
+                            messageStatus.put(messageId, status);
+                            replier.send("OK|Resultado registrado");
+                            System.out.println("GC registró resultado " + operationType + " [" + messageId + "]: " + status);
+                            
                         } else if ("CANCEL".equals(tipo)) {
                             // CANCEL: Cliente canceló operación
                             replier.send("OK|Cancelado");

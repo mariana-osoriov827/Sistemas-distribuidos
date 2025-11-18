@@ -85,10 +85,28 @@ public class ActorClient_ZMQ {
                 } catch (Exception e) {
                     System.err.println("Error conectando al GA: " + e.getMessage());
                 }
+                
+                // Reportar resultado al GC
+                reportarResultadoAGC(gcHost, gcPubPort - 1, messageId, ok ? "SUCCESS" : "FAILED", tipo);
             }
             
         } catch (Exception e) {
             e.printStackTrace();
+        }
+    }
+    
+    /**
+     * Reporta el resultado de la operación al GC para que lo almacene
+     */
+    private static void reportarResultadoAGC(String gcHost, int gcRepPort, String messageId, String status, String tipo) {
+        try (ZContext reportContext = new ZContext()) {
+            ZMQ.Socket reporter = reportContext.createSocket(ZMQ.REQ);
+            reporter.connect("tcp://" + gcHost + ":" + gcRepPort);
+            reporter.send("RESULT|" + messageId + "|" + status + "|" + tipo);
+            reporter.recvStr(); // Recibir confirmación
+            reporter.close();
+        } catch (Exception e) {
+            System.err.println("Error reportando resultado al GC: " + e.getMessage());
         }
     }
 }
