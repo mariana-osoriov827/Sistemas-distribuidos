@@ -14,6 +14,9 @@ REP_PORT=6556
 GA_PORT=6560
 GA_HOST="localhost"
 
+# Lista de GAs: primario (local) y backup (Sede 1)
+GA_LIST="localhost:6560,10.43.103.49:5560"
+
 # Classpath con dependencias
 CP="target/classes:$HOME/.m2/repository/org/zeromq/jeromq/0.6.0/jeromq-0.6.0.jar"
 
@@ -70,26 +73,26 @@ check_component "Gestor de Almacenamiento (GA) Réplica" $GA_PID "$GA_LOG"
 # Gestor de Carga (GC)
 echo "[2/5] Iniciando Gestor de Carga (GC)..."
 GC_LOG=$(mktemp)
-java -cp "$CP" Gestor_carga.ServidorGC_ZMQ $SEDE $PUB_PORT $REP_PORT $GA_HOST $GA_PORT > "$GC_LOG" 2>&1 &
+java -cp "$CP" Gestor_carga.ServidorGC_ZMQ $SEDE $PUB_PORT $REP_PORT $GA_LIST > "$GC_LOG" 2>&1 &
 GC_PID=$!
 check_component "Gestor de Carga (GC)" $GC_PID "$GC_LOG"
 
 # Actores
 echo "[3/5] Iniciando Actor Devolución..."
 DEV_LOG=$(mktemp)
-java -cp "$CP" Gestor_carga.ActorClient_ZMQ ${GA_HOST}:${PUB_PORT} ${GA_HOST}:${GA_PORT} DEVOLUCION > "$DEV_LOG" 2>&1 &
+java -cp "$CP" Gestor_carga.ActorClient_ZMQ localhost:${PUB_PORT} $GA_LIST DEVOLUCION > "$DEV_LOG" 2>&1 &
 DEV_PID=$!
 check_component "Actor Devolución" $DEV_PID "$DEV_LOG"
 
 echo "[4/5] Iniciando Actor Renovación..."
 REN_LOG=$(mktemp)
-java -cp "$CP" Gestor_carga.ActorClient_ZMQ ${GA_HOST}:${PUB_PORT} ${GA_HOST}:${GA_PORT} RENOVACION > "$REN_LOG" 2>&1 &
+java -cp "$CP" Gestor_carga.ActorClient_ZMQ localhost:${PUB_PORT} $GA_LIST RENOVACION > "$REN_LOG" 2>&1 &
 REN_PID=$!
 check_component "Actor Renovación" $REN_PID "$REN_LOG"
 
 echo "[5/5] Iniciando Actor Préstamo..."
 PRES_LOG=$(mktemp)
-java -cp "$CP" Gestor_carga.ActorPrestamo_ZMQ ${GA_HOST}:${PUB_PORT} ${GA_HOST}:${GA_PORT} > "$PRES_LOG" 2>&1 &
+java -cp "$CP" Gestor_carga.ActorPrestamo_ZMQ localhost:${PUB_PORT} localhost:${GA_PORT} > "$PRES_LOG" 2>&1 &
 PRES_PID=$!
 check_component "Actor Préstamo" $PRES_PID "$PRES_LOG"
 

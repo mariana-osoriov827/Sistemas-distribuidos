@@ -22,19 +22,34 @@ public class ServidorGC_ZMQ {
     private final int sede;
     private final String pubPort;
     private final String repPort;
-    private final String gaHost;
-    private final int gaPort;
+    private final String[] gaHosts;
+    private final int[] gaPorts;
+    private int currentGaIndex = 0;
     
     // Mapas para seguimiento de mensajes
     private final Map<String, String> messageStatus = new ConcurrentHashMap<>();
     private final DateTimeFormatter fmt = DateTimeFormatter.ISO_LOCAL_DATE;
     
-    public ServidorGC_ZMQ(int sede, String pubPort, String repPort, String gaHost, int gaPort) {
+    public ServidorGC_ZMQ(int sede, String pubPort, String repPort, String gaList) {
         this.sede = sede;
         this.pubPort = pubPort;
         this.repPort = repPort;
-        this.gaHost = gaHost;
-        this.gaPort = gaPort;
+        
+        // Parsear múltiples GAs
+        String[] gaArray = gaList.split(",");
+        this.gaHosts = new String[gaArray.length];
+        this.gaPorts = new int[gaArray.length];
+        
+        for (int i = 0; i < gaArray.length; i++) {
+            String[] parts = gaArray[i].split(":");
+            this.gaHosts[i] = parts[0];
+            this.gaPorts[i] = Integer.parseInt(parts[1]);
+        }
+        
+        System.out.println("GC configurado con " + gaArray.length + " GA(s):");
+        for (int i = 0; i < gaHosts.length; i++) {
+            System.out.println("  GA" + (i+1) + ": " + gaHosts[i] + ":" + gaPorts[i]);
+        }
     }
     
     public void iniciar() {
@@ -182,49 +197,64 @@ public class ServidorGC_ZMQ {
     }
     
     /**
-     * Consulta información del libro en el GA
+     * Consulta información del libro en el GA con failover automático
      */
     private String consultarInfoLibro(String codigoLibro) {
-        try {
-            // Conectar al GA via TCP (no ZeroMQ)
-            java.net.Socket socket = new java.net.Socket(gaHost, gaPort);
-            java.io.PrintWriter out = new java.io.PrintWriter(socket.getOutputStream(), true);
-            java.io.BufferedReader in = new java.io.BufferedReader(
-                new java.io.InputStreamReader(socket.getInputStream()));
-            
-            // Enviar consulta de información
-            out.println("INFO|" + codigoLibro + "|system");
-            
-            // Recibir respuesta
-            String response = in.readLine();
-            
-            socket.close();
-            return response != null ? response : "ERROR|Sin respuesta del GA";
-            
-        } catch (Exception e) {
-            return "ERROR|No se pudo consultar información del libro: " + e.getMessage();
-        }
+        return consultarGA("INFO|" + codigoLibro + "|system");
     }
     
     /**
-     * Valida si el libro tiene un préstamo activo
+     * Valida si el libro tiene un préstamo activo con failover
      */
     private boolean validarPrestamo(String codigoLibro) {
-        try {
-            java.net.Socket socket = new java.net.Socket(gaHost, gaPort);
-            java.io.PrintWriter out = new java.io.PrintWriter(socket.getOutputStream(), true);
-            java.io.BufferedReader in = new java.io.BufferedReader(
-                new java.io.InputStreamReader(socket.getInputStream()));
+        String response = consultarGA("VALIDAR_PRESTAMO|" + codigoLibro + "|system");
+        return response != null && response.startsWith("OK|true");
+    }
+    
+    /**
+     * Consulta genérica al GA con failover automático
+     */
+    private String consultarGA(String request) {
+        int intentos = 0;
+        int maxIntentos = gaHosts.length * 2;
+        
+        while (intentos < maxIntentos) {
+            String gaHost = gaHosts[currentGaIndex];
+            int gaPort = gaPorts[currentGaIndex];
             
-            out.println("VALIDAR_PRESTAMO|" + codigoLibro + "|system");
-            String response = in.readLine();
-            
-            socket.close();
-            return response != null && response.startsWith("OK|true");
-            
-        } catch (Exception e) {
-            return false;
+            try {
+                java.net.Socket socket = new java.net.Socket();
+                socket.connect(new java.net.InetSocketAddress(gaHost, gaPort), 2000);
+                socket.setSoTimeout(3000);
+                
+                java.io.PrintWriter out = new java.io.PrintWriter(socket.getOutputStream(), true);
+                java.io.BufferedReader in = new java.io.BufferedReader(
+                    new java.io.InputStreamReader(socket.getInputStream()));
+                
+                out.println(request);
+                String response = in.readLine();
+                
+                socket.close();
+                return response != null ? response : "ERROR|Sin respuesta del GA";
+                
+            } catch (Exception e) {
+                System.err.println("[FAILOVER] GA " + gaHost + ":" + gaPort + " no disponible");
+                
+                currentGaIndex = (currentGaIndex + 1) % gaHosts.length;
+                intentos++;
+                
+                if (intentos < maxIntentos) {
+                    System.out.println("[FAILOVER] GC intentando con GA " + gaHosts[currentGaIndex] + ":" + gaPorts[currentGaIndex]);
+                    try {
+                        Thread.sleep(500);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                    }
+                }
+            }
         }
+        
+        return "ERROR|Todos los GAs no disponibles";
     }
     
     /**
@@ -250,20 +280,19 @@ public class ServidorGC_ZMQ {
     }
     
     public static void main(String[] args) {
-        if (args.length < 5) {
-            System.out.println("Uso: java ServidorGC_ZMQ <sede> <pubPort> <repPort> <gaHost> <gaPort>");
-            System.out.println("Ejemplo Sede 1: java ServidorGC_ZMQ 1 5555 5556 localhost 5560");
-            System.out.println("Ejemplo Sede 2: java ServidorGC_ZMQ 2 6555 6556 localhost 6560");
+        if (args.length < 4) {
+            System.out.println("Uso: java ServidorGC_ZMQ <sede> <pubPort> <repPort> <gaHost1:port1[,gaHost2:port2]>");
+            System.out.println("Ejemplo Sede 1: java ServidorGC_ZMQ 1 5555 5556 localhost:5560,10.43.102.177:6560");
+            System.out.println("Ejemplo Sede 2: java ServidorGC_ZMQ 2 6555 6556 localhost:6560,10.43.103.49:5560");
             System.exit(1);
         }
         
         int sede = Integer.parseInt(args[0]);
         String pubPort = args[1];
         String repPort = args[2];
-        String gaHost = args[3];
-        int gaPort = Integer.parseInt(args[4]);
+        String gaList = args[3];
         
-        ServidorGC_ZMQ servidor = new ServidorGC_ZMQ(sede, pubPort, repPort, gaHost, gaPort);
+        ServidorGC_ZMQ servidor = new ServidorGC_ZMQ(sede, pubPort, repPort, gaList);
         servidor.iniciar();
     }
 }

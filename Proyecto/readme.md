@@ -414,30 +414,25 @@ Asegúrese de tener instalado Java 17 o superior y la librería JeroMQ.
 Desde la raíz del proyecto, ejecute los siguientes comandos:
 ```
 # Compilar todo el código fuente
-javac -cp .:jeromq-0.5.2.jar src/**/*.java -d bin
-# Ejecutar los componentes según el rol y la máquina
+mvn clean compile
 ```
 
 ### 2. Ejecutar
 #### Máquína A (Sede 1)
 ```
-# Iniciar Gestor de Almacenamiento 1
-java -cp bin:jeromq-0.5.2.jar Gestor_Almacenamiento.ServidorGA 1
-
-# Iniciar Gestor de Carga 1
-java -cp bin:jeromq-0.5.2.jar Gestor_Carga.ServidorGC 1
+chmod +x iniciar_sede1.sh
+./iniciar_sede1.sh
 ```
 #### Máquina B (Sede 2)
 ```
-java -cp bin:jeromq-0.5.2.jar Gestor_Almacenamiento.ServidorGA 2
-java -cp bin:jeromq-0.5.2.jar Gestor_Carga.ServidorGC 2
+chmod +x iniciar_sede2.sh
+./iniciar_sede2.sh
 ```
 
 #### Máquina C (Clientes)
 ```
-# Ejecutar múltiples procesos solicitantes desde archivos de carga
-java -cp bin:jeromq-0.5.2.jar ClienteBatch data/peticiones_sede1.txt
-java -cp bin:jeromq-0.5.2.jar ClienteBatch data/peticiones_sede2.txt
+chmod +x cliente.sh
+./cliente.sh 10.43.103.49 # Esta ip se cambia dependiendo de a qué sede se va a llegar
 ```
 Cada cliente puede ejecutarse con diferente número de hilos o solicitudes para generar carga variable.
 Los logs y resultados se almacenan automáticamente en `/data/logs/`.
