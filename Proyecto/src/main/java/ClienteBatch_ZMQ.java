@@ -57,9 +57,35 @@ public class ClienteBatch_ZMQ {
                 String response = requester.recvStr();
                 
                 if (response.startsWith("OK")) {
-                    System.out.println("[OK] Operación " + tipo + " sobre " + codigo + " procesada con éxito.");
+                    String[] respParts = response.split("\\|");
+                    
+                    // Si es operación asíncrona (DEVOLUCION/RENOVACION), esperar resultado final
+                    if (("DEVOLUCION".equals(tipo.toUpperCase()) || "RENOVACION".equals(tipo.toUpperCase())) 
+                        && respParts.length >= 3) {
+                        
+                        String messageId = respParts[2];
+                        System.out.println("[OK] " + tipo + " aceptada. Esperando resultado...");
+                        
+                        // Esperar 2 segundos para que el Actor procese
+                        Thread.sleep(2000);
+                        
+                        // Consultar estado final
+                        requester.send("STATUS|" + messageId);
+                        String statusResponse = requester.recvStr();
+                        
+                        if (statusResponse.contains("SUCCESS")) {
+                            System.out.println("[ÉXITO] " + tipo + " de " + codigo + " completada exitosamente.");
+                        } else if (statusResponse.contains("FAILED")) {
+                            System.out.println("[FALLÓ] " + tipo + " de " + codigo + " falló en el procesamiento.");
+                        } else {
+                            System.out.println("[PENDIENTE] " + tipo + " de " + codigo + " aún en proceso: " + statusResponse);
+                        }
+                    } else {
+                        // Operación síncrona (INFO, PRESTAMO)
+                        System.out.println("[OK] " + tipo + " sobre " + codigo + " procesada: " + response);
+                    }
                 } else if (response.startsWith("ERROR") || response.startsWith("FAILED")) {
-                    System.out.println("[ERROR] Operación " + tipo + " sobre " + codigo + " falló.");
+                    System.out.println("[ERROR] " + tipo + " sobre " + codigo + ": " + response);
                 } else {
                     System.out.println("[INFO] Respuesta: " + response);
                 }
