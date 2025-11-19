@@ -17,6 +17,10 @@ GA_HOST="localhost"
 # Lista de GAs: primario (local) y backup (Sede 1)
 GA_LIST="localhost:6560,10.43.103.49:5560"
 
+# IP de la réplica
+REPLICA_HOST="10.43.103.49"
+REPLICA_PORT=5560
+
 # Classpath con dependencias
 CP="target/classes:$HOME/.m2/repository/org/zeromq/jeromq/0.6.0/jeromq-0.6.0.jar"
 
@@ -63,12 +67,12 @@ check_component() {
     fi
 }
 
-# Gestor de Almacenamiento (GA) Réplica
-echo "[1/5] Iniciando Gestor de Almacenamiento (GA) Réplica..."
+# Gestor de Almacenamiento (GA)
+echo "[1/5] Iniciando Gestor de Almacenamiento (GA)..."
 GA_LOG=$(mktemp)
-java -cp "$CP" Gestor_Almacenamiento.ServidorGA_TCP replica $GA_PORT > "$GA_LOG" 2>&1 &
+java -cp "$CP" Gestor_Almacenamiento.ServidorGA_TCP primary $GA_PORT $REPLICA_HOST $REPLICA_PORT > "$GA_LOG" 2>&1 &
 GA_PID=$!
-check_component "Gestor de Almacenamiento (GA) Réplica" $GA_PID "$GA_LOG"
+check_component "Gestor de Almacenamiento (GA)" $GA_PID "$GA_LOG"
 
 # Gestor de Carga (GC)
 echo "[2/5] Iniciando Gestor de Carga (GC)..."
@@ -103,7 +107,7 @@ if [ $COMPONENTS_FAILED -eq 0 ]; then
     echo "======================================"
     echo ""
     echo "Componentes activos: $COMPONENTS_STARTED/5"
-    echo "  - GA Réplica (PID: $GA_PID) - Puerto: $GA_PORT"
+    echo "  - GA (PID: $GA_PID) - Puerto: $GA_PORT"
     echo "  - GC (PID: $GC_PID) - PUB: $PUB_PORT, REP: $REP_PORT"
     echo "  - Actor Devolución (PID: $DEV_PID)"
     echo "  - Actor Renovación (PID: $REN_PID)"
