@@ -1,78 +1,198 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <jmeterTestPlan version="1.2" properties="5.0" jmeter="5.6.3">
   <hashTree>
-    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="Todas las pruebas - OS Process" enabled="true">
-      <stringProp name="TestPlan.comments">Plan de pruebas para ejecutar todas_las_pruebas.txt usando cliente.sh</stringProp>
+    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="Plan de Pruebas Distribuidas" enabled="true">
+      <stringProp name="TestPlan.comments">Plan generado para ejecutar todos los casos funcionales, negativos, concurrencia, integración, resiliencia y rendimiento usando scripts reales en Linux.</stringProp>
       <boolProp name="TestPlan.functional_mode">false</boolProp>
-      <boolProp name="TestPlan.serialize_threadgroups">false</boolProp>
-      <elementProp name="TestPlan.user_defined_variables" elementType="Arguments" guiclass="ArgumentsPanel" testclass="Arguments" testname="User Defined Variables" enabled="true">
-        <collectionProp name="Arguments.arguments"/>
-      </elementProp>
+      <boolProp name="TestPlan.tearDown_on_shutdown">true</boolProp>
+      <elementProp name="TestPlan.user_defined_variables" elementType="Arguments"/>
+      <stringProp name="TestPlan.serialize_threadgroups">false</stringProp>
     </TestPlan>
     <hashTree>
       <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="Todas las pruebas" enabled="true">
         <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
-        <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControllerGui" testclass="LoopController" testname="Loop Controller" enabled="true">
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController">
           <boolProp name="LoopController.continue_forever">false</boolProp>
           <stringProp name="LoopController.loops">1</stringProp>
         </elementProp>
         <stringProp name="ThreadGroup.num_threads">1</stringProp>
         <stringProp name="ThreadGroup.ramp_time">1</stringProp>
+        <longProp name="ThreadGroup.start_time">${__time(yyyyMMddHHmmss)}</longProp>
+        <longProp name="ThreadGroup.end_time">${__time(yyyyMMddHHmmss)}</longProp>
         <boolProp name="ThreadGroup.scheduler">false</boolProp>
         <stringProp name="ThreadGroup.duration"></stringProp>
         <stringProp name="ThreadGroup.delay"></stringProp>
       </ThreadGroup>
       <hashTree>
-        <JavaConfig guiclass="TestBeanGUI" testclass="JavaConfig" testname="Set Working Directory" enabled="true">
-          <stringProp name="classname">org.apache.jmeter.protocol.java.config.JavaConfig</stringProp>
-          <stringProp name="workingDir">c:/Users/USUARIO/OneDrive/Escritorio/Universidad/SÉPTIMO SEMESTRE/Sistemas distribuidos/Sistemas-distribuidos/Proyecto</stringProp>
-        </JavaConfig>
+        <!-- PS-01: Envío correcto de peticiones desde archivo -->
+        <JSR223Sampler guiclass="TestBeanGUI" testclass="JSR223Sampler" testname="PS-01 Envío peticiones archivo" enabled="true">
+          <stringProp name="script">def proc = "./cliente.sh src/peticiones.txt".execute()
+proc.waitFor()
+SampleResult.setResponseData(proc.in.text, "UTF-8")
+SampleResult.setSuccessful(proc.exitValue() == 0)
+</stringProp>
+          <stringProp name="scriptLanguage">groovy</stringProp>
+        </JSR223Sampler>
         <hashTree/>
-        <OSProcessSampler guiclass="TestBeanGUI" testclass="OSProcessSampler" testname="Ejecutar cliente.sh con todas_las_pruebas.txt" enabled="true">
-          <stringProp name="command">./cliente.sh</stringProp>
-          <stringProp name="commandParams">localhost todas_las_pruebas.txt</stringProp>
-          <stringProp name="workingDir">c:/Users/USUARIO/OneDrive/Escritorio/Universidad/SÉPTIMO SEMESTRE/Sistemas distribuidos/Sistemas-distribuidos/Proyecto</stringProp>
-          <stringProp name="envParams"></stringProp>
-          <stringProp name="stdIn"></stringProp>
-          <stringProp name="timeout">60000</stringProp>
-        </OSProcessSampler>
+        <!-- PS-02: Archivo inexistente -->
+        <JSR223Sampler guiclass="TestBeanGUI" testclass="JSR223Sampler" testname="PS-02 Archivo inexistente" enabled="true">
+          <stringProp name="script">def proc = "./cliente.sh archivo_inexistente.txt".execute()
+proc.waitFor()
+SampleResult.setResponseData(proc.in.text + proc.err.text, "UTF-8")
+SampleResult.setSuccessful(proc.exitValue() != 0 &amp;&amp; proc.err.text.contains("no encontrado"))
+</stringProp>
+          <stringProp name="scriptLanguage">groovy</stringProp>
+        </JSR223Sampler>
         <hashTree/>
-        <ResultCollector guiclass="SummaryReport" testclass="ResultCollector" testname="Summary Report" enabled="true">
-          <boolProp name="ResultCollector.error_logging">false</boolProp>
-          <objProp>
-            <name>saveConfig</name>
-            <value class="SampleSaveConfiguration">
-              <time>true</time>
-              <latency>true</latency>
-              <timestamp>true</timestamp>
-              <success>true</success>
-              <label>true</label>
-              <code>true</code>
-              <message>true</message>
-              <threadName>true</threadName>
-              <dataType>true</dataType>
-              <encoding>false</encoding>
-              <assertions>true</assertions>
-              <subresults>true</subresults>
-              <responseData>false</responseData>
-              <samplerData>false</samplerData>
-              <xml>false</xml>
-              <fieldNames>true</fieldNames>
-              <responseHeaders>false</responseHeaders>
-              <requestHeaders>false</requestHeaders>
-              <responseDataOnError>false</responseDataOnError>
-              <saveAssertionResultsFailureMessage>true</saveAssertionResultsFailureMessage>
-              <assertionsResultsToSave>0</assertionsResultsToSave>
-              <bytes>true</bytes>
-              <sentBytes>true</sentBytes>
-              <url>true</url>
-              <threadCounts>true</threadCounts>
-              <idleTime>true</idleTime>
-              <connectTime>true</connectTime>
-            </value>
-          </objProp>
-          <stringProp name="filename">resultados_jmeter_todas.csv</stringProp>
-        </ResultCollector>
+        <!-- DEV-01: Devolución válida -->
+        <JSR223Sampler guiclass="TestBeanGUI" testclass="JSR223Sampler" testname="DEV-01 Devolución válida" enabled="true">
+          <stringProp name="script">def proc = "./cliente.sh src/dev_01.txt".execute()
+proc.waitFor()
+SampleResult.setResponseData(proc.in.text, "UTF-8")
+SampleResult.setSuccessful(proc.exitValue() == 0 &amp;&amp; proc.in.text.contains("OK"))
+</stringProp>
+          <stringProp name="scriptLanguage">groovy</stringProp>
+        </JSR223Sampler>
+        <hashTree/>
+        <!-- DEV-02: Devolución libro no prestado -->
+        <JSR223Sampler guiclass="TestBeanGUI" testclass="JSR223Sampler" testname="DEV-02 Devolución no prestado" enabled="true">
+          <stringProp name="script">def proc = "./cliente.sh src/dev_02.txt".execute()
+proc.waitFor()
+SampleResult.setResponseData(proc.in.text, "UTF-8")
+SampleResult.setSuccessful(proc.exitValue() == 0 &amp;&amp; proc.in.text.contains("sin cambios"))
+</stringProp>
+          <stringProp name="scriptLanguage">groovy</stringProp>
+        </JSR223Sampler>
+        <hashTree/>
+        <!-- REN-01: Renovación válida -->
+        <JSR223Sampler guiclass="TestBeanGUI" testclass="JSR223Sampler" testname="REN-01 Renovación válida" enabled="true">
+          <stringProp name="script">def proc = "./cliente.sh src/ren_01.txt".execute()
+proc.waitFor()
+SampleResult.setResponseData(proc.in.text, "UTF-8")
+SampleResult.setSuccessful(proc.exitValue() == 0 &amp;&amp; proc.in.text.contains("modificación"))
+</stringProp>
+          <stringProp name="scriptLanguage">groovy</stringProp>
+        </JSR223Sampler>
+        <hashTree/>
+        <!-- REN-02: Rechazo tercera renovación -->
+        <JSR223Sampler guiclass="TestBeanGUI" testclass="JSR223Sampler" testname="REN-02 Rechazo tercera renovación" enabled="true">
+          <stringProp name="script">def proc = "./cliente.sh src/ren_02.txt".execute()
+proc.waitFor()
+SampleResult.setResponseData(proc.in.text, "UTF-8")
+SampleResult.setSuccessful(proc.exitValue() == 0 &amp;&amp; proc.in.text.contains("no permitida"))
+</stringProp>
+          <stringProp name="scriptLanguage">groovy</stringProp>
+        </JSR223Sampler>
+        <hashTree/>
+        <!-- PRE-01: Préstamo exitoso -->
+        <JSR223Sampler guiclass="TestBeanGUI" testclass="JSR223Sampler" testname="PRE-01 Préstamo exitoso" enabled="true">
+          <stringProp name="script">def proc = "./cliente.sh src/pre_01.txt".execute()
+proc.waitFor()
+SampleResult.setResponseData(proc.in.text, "UTF-8")
+SampleResult.setSuccessful(proc.exitValue() == 0 &amp;&amp; proc.in.text.contains("aprobado"))
+</stringProp>
+          <stringProp name="scriptLanguage">groovy</stringProp>
+        </JSR223Sampler>
+        <hashTree/>
+        <!-- PRE-02: Sin ejemplares disponibles -->
+        <JSR223Sampler guiclass="TestBeanGUI" testclass="JSR223Sampler" testname="PRE-02 Sin ejemplares" enabled="true">
+          <stringProp name="script">def proc = "./cliente.sh src/pre_02.txt".execute()
+proc.waitFor()
+SampleResult.setResponseData(proc.in.text, "UTF-8")
+SampleResult.setSuccessful(proc.exitValue() == 0 &amp;&amp; proc.in.text.contains("Sin ejemplares"))
+</stringProp>
+          <stringProp name="scriptLanguage">groovy</stringProp>
+        </JSR223Sampler>
+        <hashTree/>
+        <!-- PRE-03: Colisión devolución/préstamo -->
+        <JSR223Sampler guiclass="TestBeanGUI" testclass="JSR223Sampler" testname="PRE-03 Colisión devolución/préstamo" enabled="true">
+          <stringProp name="script">def proc = "./cliente.sh src/pre_03.txt".execute()
+proc.waitFor()
+SampleResult.setResponseData(proc.in.text, "UTF-8")
+SampleResult.setSuccessful(proc.exitValue() == 0)
+</stringProp>
+          <stringProp name="scriptLanguage">groovy</stringProp>
+        </JSR223Sampler>
+        <hashTree/>
+        <!-- PER-01: Igualdad inicial BD primaria/réplica -->
+        <JSR223Sampler guiclass="TestBeanGUI" testclass="JSR223Sampler" testname="PER-01 Igualdad BD" enabled="true">
+          <stringProp name="script">def proc = "diff src/bd_primaria.txt src/bd_replicada.txt".execute()
+proc.waitFor()
+SampleResult.setResponseData(proc.in.text, "UTF-8")
+SampleResult.setSuccessful(proc.exitValue() == 0)
+</stringProp>
+          <stringProp name="scriptLanguage">groovy</stringProp>
+        </JSR223Sampler>
+        <hashTree/>
+        <!-- PER-02: Replicación asíncrona -->
+        <JSR223Sampler guiclass="TestBeanGUI" testclass="JSR223Sampler" testname="PER-02 Replicación asíncrona" enabled="true">
+          <stringProp name="script">def proc = "./cliente.sh src/per_02.txt".execute()
+proc.waitFor()
+SampleResult.setResponseData(proc.in.text, "UTF-8")
+SampleResult.setSuccessful(proc.exitValue() == 0)
+</stringProp>
+          <stringProp name="scriptLanguage">groovy</stringProp>
+        </JSR223Sampler>
+        <hashTree/>
+        <!-- FAIL-01: Caída GA/BD primaria -->
+        <JSR223Sampler guiclass="TestBeanGUI" testclass="JSR223Sampler" testname="FAIL-01 Caída GA" enabled="true">
+          <stringProp name="script">def proc = "./cliente.sh src/fail_01.txt".execute()
+proc.waitFor()
+SampleResult.setResponseData(proc.in.text, "UTF-8")
+SampleResult.setSuccessful(proc.exitValue() == 0)
+</stringProp>
+          <stringProp name="scriptLanguage">groovy</stringProp>
+        </JSR223Sampler>
+        <hashTree/>
+        <!-- FAIL-02: Falla Actor Devolución -->
+        <JSR223Sampler guiclass="TestBeanGUI" testclass="JSR223Sampler" testname="FAIL-02 Falla Actor Devolución" enabled="true">
+          <stringProp name="script">def proc = "./cliente.sh src/fail_02.txt".execute()
+proc.waitFor()
+SampleResult.setResponseData(proc.in.text, "UTF-8")
+SampleResult.setSuccessful(proc.exitValue() == 0)
+</stringProp>
+          <stringProp name="scriptLanguage">groovy</stringProp>
+        </JSR223Sampler>
+        <hashTree/>
+        <!-- DES-01: Tiempo de respuesta promedio (4 PS) -->
+        <JSR223Sampler guiclass="TestBeanGUI" testclass="JSR223Sampler" testname="DES-01 Tiempo respuesta 4 PS" enabled="true">
+          <stringProp name="script">def proc = "./cliente.sh src/des_01.txt".execute()
+proc.waitFor()
+SampleResult.setResponseData(proc.in.text, "UTF-8")
+SampleResult.setSuccessful(proc.exitValue() == 0)
+</stringProp>
+          <stringProp name="scriptLanguage">groovy</stringProp>
+        </JSR223Sampler>
+        <hashTree/>
+        <!-- DES-02: Tasa de rendimiento total (10 PS) -->
+        <JSR223Sampler guiclass="TestBeanGUI" testclass="JSR223Sampler" testname="DES-02 Tasa rendimiento 10 PS" enabled="true">
+          <stringProp name="script">def proc = "./cliente.sh src/des_02.txt".execute()
+proc.waitFor()
+SampleResult.setResponseData(proc.in.text, "UTF-8")
+SampleResult.setSuccessful(proc.exitValue() == 0)
+</stringProp>
+          <stringProp name="scriptLanguage">groovy</stringProp>
+        </JSR223Sampler>
+        <hashTree/>
+        <!-- DES-03: Comparar GC serial vs multihilos -->
+        <JSR223Sampler guiclass="TestBeanGUI" testclass="JSR223Sampler" testname="DES-03 GC serial vs multihilos" enabled="true">
+          <stringProp name="script">def proc = "./cliente.sh src/des_03.txt".execute()
+proc.waitFor()
+SampleResult.setResponseData(proc.in.text, "UTF-8")
+SampleResult.setSuccessful(proc.exitValue() == 0)
+</stringProp>
+          <stringProp name="scriptLanguage">groovy</stringProp>
+        </JSR223Sampler>
+        <hashTree/>
+        <!-- DES-04: Comparar asincronía completa vs síncrona -->
+        <JSR223Sampler guiclass="TestBeanGUI" testclass="JSR223Sampler" testname="DES-04 Asincronía vs síncrona" enabled="true">
+          <stringProp name="script">def proc = "./cliente.sh src/des_04.txt".execute()
+proc.waitFor()
+SampleResult.setResponseData(proc.in.text, "UTF-8")
+SampleResult.setSuccessful(proc.exitValue() == 0)
+</stringProp>
+          <stringProp name="scriptLanguage">groovy</stringProp>
+        </JSR223Sampler>
         <hashTree/>
       </hashTree>
     </hashTree>
