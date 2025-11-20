@@ -6,7 +6,9 @@ Gestor_carga\ServidorGC_ZMQ.class
 Gestor_carga\ActorPrestamo_ZMQ.class
 Gestor_carga\ActorClient.class
 Gestor_Almacenamiento\ServidorGA.class
+Gestor_carga\ServidorGC.class
 Gestor_carga\ActorClient_ZMQ.class
+Gestor_Almacenamiento\ServidorGA_TCP.class
 Gestor_Almacenamiento\BaseDatos.class
 Gestor_Almacenamiento\GestorAlmacenamiento.class
 Gestor_carga\BibliotecaGC.class

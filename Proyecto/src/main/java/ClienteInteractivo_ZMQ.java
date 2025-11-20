@@ -68,18 +68,15 @@ public class ClienteInteractivo_ZMQ {
                 String infoRequest = "INFO|" + codigoLibro;
                 requester.send(infoRequest);
                 String infoResponse = requester.recvStr();
-                
-                if (infoResponse.startsWith("ERROR")) {
+                if (infoResponse.startsWith("ERROR") || infoResponse.contains("FAILED|Libro no encontrado")) {
                     System.out.println("\n[ERROR] " + infoResponse);
                     continue;
                 }
-                
                 // Mostrar información del libro
                 System.out.println("\n" + infoResponse);
                 System.out.print("¿Desea continuar con esta operación? (s/n): ");
-                String confirmacion = scanner.nextLine().trim().toLowerCase();
-                
-                if (!confirmacion.equals("s") && !confirmacion.equals("si")) {
+                String confirmarOperacion = scanner.nextLine().trim().toLowerCase();
+                if (!confirmarOperacion.equals("s") && !confirmarOperacion.equals("si")) {
                     System.out.println("Operación cancelada.");
                     // Consumir respuesta pendiente
                     requester.send("CANCEL");
@@ -109,43 +106,9 @@ public class ClienteInteractivo_ZMQ {
                 
                 requester.send(operacion);
                 String response = requester.recvStr();
-                
-                // Si hay error, mostrarlo y no continuar
-                if (response.startsWith("ERROR")) {
-                    System.out.println("\n" + formatResponse(response));
-                    continue;
-                }
-                
                 System.out.println("\n" + formatResponse(response));
-                
-                // Si es operación asíncrona (DEVOLUCION o RENOVACION), esperar y consultar estado
-                if ((opcion.equals("2") || opcion.equals("3")) && response.contains("Aceptado|")) {
-                    String[] responseParts = response.split("\\|");
-                    if (responseParts.length >= 3) {
-                        String messageId = responseParts[2];
-                        System.out.println("\nEsperando resultado de la operación...");
-                        
-                        // Esperar 2 segundos para que el actor procese
-                        Thread.sleep(2000);
-                        
-                        // Consultar estado
-                        requester.send("STATUS|" + messageId);
-                        String statusResponse = requester.recvStr();
-                        
-                        if (statusResponse.startsWith("STATUS|")) {
-                            String status = statusResponse.substring(7);
-                            if ("SUCCESS".equals(status)) {
-                                System.out.println("[ÉXITO] La operación se completó exitosamente");
-                            } else if ("FAILED".equals(status)) {
-                                System.out.println("[FALLÓ] La operación no se pudo completar");
-                            } else {
-                                System.out.println("[INFO] Estado: " + status);
-                            }
-                        }
-                    }
-                }
+                // Aquí puedes agregar lógica para esperar y consultar estado si es necesario
             }
-            
         } catch (Exception e) {
             e.printStackTrace();
         }
