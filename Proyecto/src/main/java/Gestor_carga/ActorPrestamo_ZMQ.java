@@ -75,21 +75,30 @@ public class ActorPrestamo_ZMQ {
                     if (prestamoConcedido) {
                         System.out.println("[OK] ActorPrestamo: PRÉSTAMO OTORGADO para libro " + codigoLibro);
                         // Reportar resultado OK al GC
-                        String resultMsg = "RESULT|" + messageId + "|OK|PRESTAMO";
+                        String resultMsg = "RESULT|" + messageId + "|OK||PRESTAMO";
                         resultPusher.send(resultMsg);
                         System.out.println("ActorPrestamo reportó: " + resultMsg);
                     } else {
                         System.out.println("[FAIL] ActorPrestamo: PRÉSTAMO DENEGADO para libro " + codigoLibro + " - " + respuestaCompleta);
                         // Reportar resultado FAILED y mensaje de error real al GC
-                        String errorMsg = respuestaCompleta != null ? respuestaCompleta : "FAILED|Error desconocido";
-                        String resultMsg = "RESULT|" + messageId + "|" + errorMsg + "|PRESTAMO";
+                        String errorMsg = "Error desconocido";
+                        if (respuestaCompleta != null) {
+                            if (respuestaCompleta.startsWith("FAILED|")) {
+                                errorMsg = respuestaCompleta.substring(7); // Solo el mensaje, sin el prefijo
+                            } else if (respuestaCompleta.startsWith("ERROR|")) {
+                                errorMsg = respuestaCompleta.substring(6);
+                            } else {
+                                errorMsg = respuestaCompleta;
+                            }
+                        }
+                        String resultMsg = "RESULT|" + messageId + "|FAILED|" + errorMsg + "|PRESTAMO";
                         resultPusher.send(resultMsg);
                         System.out.println("ActorPrestamo reportó: " + resultMsg);
                     }
                 } catch (Exception e) {
                     System.err.println("Error conectando al GA: " + e.getMessage());
                     System.out.println("[ERROR] ActorPrestamo: PRÉSTAMO FALLÓ por error de conexión");
-                    String resultMsg = "RESULT|" + messageId + "|FAILED|PRESTAMO";
+                    String resultMsg = "RESULT|" + messageId + "|FAILED|Error de conexión|PRESTAMO";
                     resultPusher.send(resultMsg);
                     System.out.println("ActorPrestamo reportó: " + resultMsg);
                 }
