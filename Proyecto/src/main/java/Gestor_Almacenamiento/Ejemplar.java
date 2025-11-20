@@ -1,3 +1,4 @@
+    private String usuarioActual; // Nuevo: usuario que tiene el ejemplar prestado
 /**************************************************************************************
 * Fecha: 10/10/2025
 * Autor: Gabriel Jaramillo, Roberth Méndez, Mariana Osorio Vasquez, Juan Esteban Vera
@@ -26,6 +27,7 @@ public class Ejemplar implements Serializable {
         this.estado = estado;
         this.fecha = fecha;
         this.contadorRenovaciones = 0;
+        this.usuarioActual = null;
     }
 
     public int getId() { return id; }
@@ -35,9 +37,17 @@ public class Ejemplar implements Serializable {
 
     public void setEstado(char estado) { 
         this.estado = estado;
-        // Resetear contador de renovaciones cuando se devuelve
+        // Resetear contador de renovaciones y usuario cuando se devuelve
         if (estado == 'D') {
             this.contadorRenovaciones = 0;
+            this.usuarioActual = null;
+        }
+        public String getUsuarioActual() {
+            return usuarioActual;
+        }
+
+        public void setUsuarioActual(String usuarioActual) {
+            this.usuarioActual = usuarioActual;
         }
     }
     

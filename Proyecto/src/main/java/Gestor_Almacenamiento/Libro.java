@@ -87,9 +87,9 @@ public class Libro implements Serializable {
      * - Extiende la fecha de un ejemplar prestado por 7 días.
      * - Valida que no se superen las 2 renovaciones máximas permitidas.
      */
-    public synchronized boolean renovar() {
+    public synchronized boolean renovar(String usuarioId) {
         for (Ejemplar ej : ejemplares) {
-            if (ej.getEstado() == 'P') {
+            if (ej.getEstado() == 'P' && usuarioId != null && usuarioId.equals(ej.getUsuarioActual())) {
                 // Validar que no se hayan superado las 2 renovaciones
                 if (!ej.puedeRenovar()) {
                     System.out.println("Renovación denegada: máximo de 2 renovaciones alcanzado");

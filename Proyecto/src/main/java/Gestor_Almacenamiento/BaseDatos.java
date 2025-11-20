@@ -110,7 +110,7 @@ public class BaseDatos {
         Libro l = libros.get(codigo);
         if (l == null) return false;
         synchronized (l) {
-            return l.renovar();
+            return l.renovar(usuarioId);
         }
     }
 
