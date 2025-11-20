@@ -42,7 +42,7 @@ for caso in "${!pruebas[@]}"; do
   for threads in "${THREADS_LIST[@]}"; do
     out_file="${caso}_T${threads}.dat"
     echo "==== $caso | Hilos: $threads ====" > "$out_file"
-    echo "Ejecutando $caso con $threads hilo(s) x$REPS repeticiones. Entrada: $entrada"
+    echo "Ejecutando $caso con $threads hilo(s) x$REPS repeticiones. Entrada: $entrada" >> "$out_file"
     for rep in $(seq 1 $REPS); do
       if [[ $caso == PER-01 ]]; then
         # Comparar archivos para PER-01 (no tiene sentido con hilos, pero se mantiene para consistencia)
@@ -61,6 +61,7 @@ for caso in "${!pruebas[@]}"; do
         end=$(date +%s%N)
         elapsed=$(( (end - start)/1000000 ))
         echo "Tiempo de ejecución total para $threads hilo(s) en repetición $rep: $elapsed ms" >> "$out_file"
+        echo "-----------------------------" >> "$out_file"
       fi
     done
     echo "Salida guardada en $out_file"
