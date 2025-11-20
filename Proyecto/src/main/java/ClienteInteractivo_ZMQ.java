@@ -116,9 +116,9 @@ public class ClienteInteractivo_ZMQ {
                         // Polling STATUS hasta obtener respuesta real o agotar reintentos
                         String status = "PENDING";
                         int intentos = 0;
-                        int maxIntentos = 10;
+                        int maxIntentos = 5;
                         while ("PENDING".equals(status) && intentos < maxIntentos) {
-                            try { Thread.sleep(1000); } catch (InterruptedException e) { break; }
+                            try { Thread.sleep(300); } catch (InterruptedException e) { break; }
                             requester.send("STATUS|" + messageId);
                             String statusResp = requester.recvStr();
                             if (statusResp.startsWith("STATUS|")) {

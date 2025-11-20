@@ -86,9 +86,8 @@ public class ServidorGC_ZMQ {
             System.out.println("ServidorGC_ZMQ Sede " + sede + " corriendo...\n");
             
             while (!Thread.currentThread().isInterrupted()) {
-                
-                // Poll con timeout de 100ms
-                poller.poll(100);
+                // Poll con timeout de 10ms (más rápido)
+                poller.poll(10);
                 
                 // Manejar resultados de actores (PULL socket)
                 if (poller.pollin(1)) {
@@ -157,7 +156,7 @@ public class ServidorGC_ZMQ {
                                 publisher.send(mensaje);
                                 System.out.println("GC publicó PRESTAMO: " + mensaje);
                                 // Esperar resultado real del actor (bloqueante, timeout opcional)
-                                String resultado = esperarResultadoActor(id, 10000); // Aumenta timeout a 10s
+                                String resultado = esperarResultadoActor(id, 2000); // Timeout reducido a 2s
                                 if (resultado == null) {
                                     replier.send("ERROR|No se recibió respuesta del actor|" + id);
                                 } else if (resultado.startsWith("OK")) {
