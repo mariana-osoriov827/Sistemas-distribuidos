@@ -115,10 +115,17 @@ public class ClienteInteractivo_ZMQ {
     }
     
     private static String formatResponse(String response) {
-        if (response.startsWith("OK")) {
-            return "[OK] " + response.substring(3);
+        if (response.startsWith("OK|")) {
+            // Si la respuesta tiene más de un campo, solo mostrar el mensaje principal
+            String[] parts = response.split("\\|", 3);
+            if (parts.length >= 2) {
+                // Si hay un tercer campo (como UUID), lo ignoramos
+                return "[OK] " + parts[1];
+            } else {
+                return "[OK] " + response.substring(3);
+            }
         } else if (response.startsWith("ERROR") || response.startsWith("FAILED")) {
-            return "[ERROR] " + response;
+            return "[ERROR] " + response.replaceFirst("(ERROR|FAILED)\\|", "");
         } else {
             return "[INFO] " + response;
         }

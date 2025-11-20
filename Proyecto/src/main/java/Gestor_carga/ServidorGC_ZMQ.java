@@ -152,7 +152,7 @@ public class ServidorGC_ZMQ {
                             // El Actor de Préstamo procesará esto de forma síncrona con el GA
                             // Por ahora, respondemos que se está procesando
                             // En una implementación completa, necesitaríamos un canal de respuesta
-                            replier.send("OK|Préstamo en proceso|" + id);
+                            replier.send("OK|Préstamo en proceso");
                             System.out.println("GC respondió préstamo: en proceso");
                             
                         } else if ("DEVOLUCION".equals(tipo) || "RENOVACION".equals(tipo)) {
@@ -168,7 +168,7 @@ public class ServidorGC_ZMQ {
                                     LocalDate.now().plusWeeks(1).format(fmt) : "null";
                                 
                                 // Responder al cliente inmediatamente
-                                replier.send("OK|Aceptado|" + id);
+                                replier.send("OK|Aceptado");
                                 System.out.println("GC aceptó " + tipo + " inmediatamente");
                                 
                                 // Publicar mensaje a los actores
