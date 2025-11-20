@@ -24,7 +24,7 @@ public class Libro implements Serializable {
     private static final long serialVersionUID = 1L;
     private final String codigo;
     private final String nombre;
-    private final List<Ejemplar> ejemplares = new ArrayList<>();
+    private final ArrayList<Ejemplar> ejemplares = new ArrayList<>();
 
     // cantidad esperada según libros.txt
     private int cantidadEsperada = 0;
@@ -42,7 +42,7 @@ public class Libro implements Serializable {
 
     public String getCodigo() { return codigo; }
     public String getNombre() { return nombre; }
-    public List<Ejemplar> getEjemplares() { return ejemplares; }
+    public ArrayList<Ejemplar> getEjemplares() { return ejemplares; }
 
     public void addEjemplar(Ejemplar ej) {
         ejemplares.add(ej);
@@ -52,16 +52,17 @@ public class Libro implements Serializable {
     public int getCantidadEsperada() { return cantidadEsperada; }
 
     /**
-     * - Busca el primer ejemplar disponible ('D'), lo marca como prestado ('P')
-     *   y asigna una fecha de entrega (14 días a partir de hoy según requisitos).
+     * - Busca el primer ejemplar disponible ('D'), lo marca como prestado ('P'),
+     *   asigna una fecha de entrega y registra el usuario que lo tomó prestado.
      */
-    public synchronized boolean prestar() {
+    public synchronized boolean prestar(String usuarioId) {
         for (Ejemplar ej : ejemplares) {
             if (ej.getEstado() == 'D') {
                 ej.setEstado('P');
                 // Préstamo por 2 semanas (14 días) según requisitos del proyecto
                 String fechaEntrega = LocalDate.now().plusDays(14).format(fmt);
                 ej.setFecha(fechaEntrega);
+                ej.setUsuarioActual(usuarioId);
                 return true;
             }
         }

@@ -59,7 +59,7 @@ public class GestorAlmacenamientoImpl extends UnicastRemoteObject implements Ges
      */
     @Override
     public synchronized boolean aplicarPrestamoEnBD(String codigoLibro, String usuarioId) throws RemoteException {
-        boolean exito = baseDatos.prestarEjemplar(codigoLibro);
+        boolean exito = baseDatos.prestarEjemplar(codigoLibro, usuarioId);
         System.out.println("GA (" + rol + "): préstamo de " + codigoLibro + " -> " + exito);
         // Aquí se podría llamar a replicarOperacion("PRESTAMO", codigoLibro, usuarioId, fecha)
         return exito;

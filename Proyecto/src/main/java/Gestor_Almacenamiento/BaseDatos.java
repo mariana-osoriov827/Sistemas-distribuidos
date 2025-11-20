@@ -115,11 +115,11 @@ public class BaseDatos {
     }
 
     // Prestar un ejemplar disponible
-    public boolean prestarEjemplar(String codigo) {
+    public boolean prestarEjemplar(String codigo, String usuarioId) {
         Libro l = libros.get(codigo);
         if (l == null) return false;
         synchronized (l) {
-            return l.prestar();
+            return l.prestar(usuarioId);
         }
     }
 
