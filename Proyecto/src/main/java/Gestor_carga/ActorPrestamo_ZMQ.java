@@ -78,6 +78,7 @@ public class ActorPrestamo_ZMQ {
                         // Reportar resultado OK al GC
                         String resultMsg = "RESULT|" + messageId + "|OK|Préstamo otorgado|PRESTAMO";
                         resultPusher.send(resultMsg);
+                        System.out.println("ActorPrestamo envió resultado: " + resultMsg);
                         System.out.println("ActorPrestamo reportó: " + resultMsg);
                     } else {
                         System.out.println("[FAIL] ActorPrestamo: PRÉSTAMO DENEGADO para libro " + codigoLibro + " - " + respuestaCompleta);
@@ -94,6 +95,7 @@ public class ActorPrestamo_ZMQ {
                         }
                         String resultMsg = "RESULT|" + messageId + "|FAILED|" + errorMsg + "|PRESTAMO";
                         resultPusher.send(resultMsg);
+                        System.out.println("ActorPrestamo envió resultado: " + resultMsg);
                         System.out.println("ActorPrestamo reportó: " + resultMsg);
                     }
                 } catch (Exception e) {
@@ -101,6 +103,7 @@ public class ActorPrestamo_ZMQ {
                     System.out.println("[ERROR] ActorPrestamo: PRÉSTAMO FALLÓ por error de conexión");
                     String resultMsg = "RESULT|" + messageId + "|FAILED|Error de conexión|PRESTAMO";
                     resultPusher.send(resultMsg);
+                    System.out.println("ActorPrestamo envió resultado: " + resultMsg);
                     System.out.println("ActorPrestamo reportó: " + resultMsg);
                 }
             }

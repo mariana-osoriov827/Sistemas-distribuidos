@@ -110,6 +110,7 @@ public class ActorClient_ZMQ {
                     resultMsg = "RESULT|" + messageId + "|FAILED|" + errorMsg + "|" + tipo;
                 }
                 resultPusher.send(resultMsg);
+                System.out.println("Actor " + topic + " envió resultado: " + resultMsg);
                 System.out.println("Actor reportó: " + resultMsg);
             }
             
