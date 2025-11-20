@@ -66,8 +66,9 @@ public class ActorClient_ZMQ {
             // Socket PUSH para reportar resultados al GC (puerto PUB + 2 = REP + 1)
             // Sede 1: 5555 (PUB) + 2 = 5557 = 5556 (REP) + 1
             ZMQ.Socket resultPusher = context.createSocket(ZMQ.PUSH);
-            resultPusher.connect("tcp://" + gcHost + ":" + (gcPubPort + 2));
-            System.out.println("Actor reportará resultados en puerto " + (gcPubPort + 2));
+            String pushTarget = "tcp://" + gcHost + ":" + (gcPubPort + 2);
+            resultPusher.connect(pushTarget);
+            System.out.println("Actor reportará resultados en " + pushTarget);
             
             while (!Thread.currentThread().isInterrupted()) {
                 // Recibir mensaje del GC

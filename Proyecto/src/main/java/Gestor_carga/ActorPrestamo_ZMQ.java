@@ -43,8 +43,9 @@ public class ActorPrestamo_ZMQ {
             // Socket PUSH para reportar resultados al GC (puerto PUB + 2 = REP + 1)
             int resultPort = gcPubPort + 2;
             ZMQ.Socket resultPusher = context.createSocket(ZMQ.PUSH);
-            resultPusher.connect("tcp://" + gcHost + ":" + resultPort);
-            System.out.println("ActorPrestamo reportará resultados en puerto " + resultPort);
+            String pushTarget = "tcp://" + gcHost + ":" + resultPort;
+            resultPusher.connect(pushTarget);
+            System.out.println("ActorPrestamo reportará resultados en " + pushTarget);
 
             while (!Thread.currentThread().isInterrupted()) {
                 // Recibir mensaje del GC
