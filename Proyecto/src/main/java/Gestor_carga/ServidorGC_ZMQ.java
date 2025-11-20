@@ -159,9 +159,9 @@ public class ServidorGC_ZMQ {
                                 publisher.send(mensaje);
                                 System.out.println("GC publicó PRESTAMO: " + mensaje);
                                 // Esperar resultado real del actor (bloqueante, timeout opcional)
-                                String resultado = esperarResultadoActor(id, 5000);
+                                String resultado = esperarResultadoActor(id, 10000); // Aumenta timeout a 10s
                                 if (resultado == null) {
-                                    replier.send("ERROR|No se recibió respuesta del actor");
+                                    replier.send("ERROR|No se recibió respuesta del actor|" + id);
                                 } else if (resultado.startsWith("OK")) {
                                     replier.send("OK|Préstamo otorgado");
                                 } else {

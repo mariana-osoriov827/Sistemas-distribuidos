@@ -107,17 +107,35 @@ public class ClienteInteractivo_ZMQ {
                 requester.send(operacion);
                 String response = requester.recvStr();
                 // Si la respuesta es de error por timeout del actor, intentar polling STATUS
-                if (response.startsWith("ERROR|No se recibió respuesta del actor")) {
-                    // Extraer el messageId de la operación enviada
-                    String[] opParts = operacion.split("\\|");
-                    String tipo = opParts[0];
-                    // El messageId solo lo conoce el GC, así que debemos modificar el GC para devolver el id en el error, o parsear del log
-                    // Solución: el GC debe devolver 'ERROR|No se recibió respuesta del actor|<messageId>'
-                    // Si no está, solo informar al usuario
-                    System.out.println("\n[INFO] No se recibió respuesta inmediata del actor. Consultando estado...");
-                    // No tenemos el messageId, así que no podemos hacer polling STATUS correctamente sin modificar el GC
-                    // Mostrar el error original
-                    System.out.println("\n" + formatResponse(response));
+                if (response.startsWith("ERROR|No se recibió respuesta del actor|")) {
+                    // Extraer el messageId de la respuesta de error
+                    String[] errParts = response.split("\\|", 3);
+                    String messageId = errParts.length >= 3 ? errParts[2] : null;
+                    if (messageId != null) {
+                        System.out.println("\n[INFO] No se recibió respuesta inmediata del actor. Consultando estado...");
+                        // Polling STATUS hasta obtener respuesta real o agotar reintentos
+                        String status = "PENDING";
+                        int intentos = 0;
+                        int maxIntentos = 10;
+                        while ("PENDING".equals(status) && intentos < maxIntentos) {
+                            try { Thread.sleep(1000); } catch (InterruptedException e) { break; }
+                            requester.send("STATUS|" + messageId);
+                            String statusResp = requester.recvStr();
+                            if (statusResp.startsWith("STATUS|")) {
+                                status = statusResp.substring(7);
+                            } else {
+                                break;
+                            }
+                            intentos++;
+                        }
+                        if (!"PENDING".equals(status)) {
+                            System.out.println("\n" + formatResponse(status));
+                        } else {
+                            System.out.println("\n[ERROR] No se obtuvo respuesta del actor tras varios intentos.");
+                        }
+                    } else {
+                        System.out.println("\n" + formatResponse(response));
+                    }
                 } else {
                     System.out.println("\n" + formatResponse(response));
                 }
