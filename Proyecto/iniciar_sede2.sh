@@ -24,40 +24,30 @@ REPLICA_PORT=5560
 # Classpath con dependencias
 CP="target/classes:$HOME/.m2/repository/org/zeromq/jeromq/0.6.0/jeromq-0.6.0.jar"
 
+
 # Crear directorio de logs si no existe
 mkdir -p logs
 
+# Contadores globales
 COMPONENTS_FAILED=0
-    local log=$3
+COMPONENTS_STARTED=0
 
-# Cambia 'localhost' por la IP real del GC de Sede 2
-GC_IP="10.43.103.49"  # <-- AJUSTA AQUÍ si tu GC de Sede 2 tiene otra IP
-
+# Función para checar componentes
+check_component() {
+    name="$1"
+    pid=$2
+    log=$3
+    sleep 1
+    if kill -0 $pid 2>/dev/null; then
         # El proceso está vivo, verificar si hay errores en la salida
-DEV_LOG=$(mktemp)
-java -cp "$CP" Gestor_carga.ActorClient_ZMQ ${GC_IP}:${PUB_PORT} $GA_LIST DEVOLUCION > "$DEV_LOG" 2>&1 &
-DEV_PID=$!
-check_component "Actor Devolución" $DEV_PID "$DEV_LOG"
-
         if grep -qi "error\|exception\|could not find" "$log" 2>/dev/null; then
-REN_LOG=$(mktemp)
-java -cp "$CP" Gestor_carga.ActorClient_ZMQ ${GC_IP}:${PUB_PORT} $GA_LIST RENOVACION > "$REN_LOG" 2>&1 &
-REN_PID=$!
-check_component "Actor Renovación" $REN_PID "$REN_LOG"
-
             echo "[FALLO] $name (PID: $pid) - Errores detectados"
-PRES_LOG=$(mktemp)
-java -cp "$CP" Gestor_carga.ActorPrestamo_ZMQ ${GC_IP}:${PUB_PORT} localhost:${GA_PORT} > "$PRES_LOG" 2>&1 &
-PRES_PID=$!
-check_component "Actor Préstamo" $PRES_PID "$PRES_LOG"
             cat "$log"
             COMPONENTS_FAILED=$((COMPONENTS_FAILED + 1))
             kill $pid 2>/dev/null
-            return 1
         else
             echo "[OK] $name iniciado correctamente (PID: $pid)"
             COMPONENTS_STARTED=$((COMPONENTS_STARTED + 1))
-            return 0
         fi
     else
         echo "[FALLO] $name - El proceso terminó inmediatamente"
@@ -65,9 +55,12 @@ check_component "Actor Préstamo" $PRES_PID "$PRES_LOG"
             cat "$log"
         fi
         COMPONENTS_FAILED=$((COMPONENTS_FAILED + 1))
-        return 1
     fi
 }
+
+
+# Cambia 'localhost' por la IP real del GC de Sede 2
+GC_IP="10.43.103.49"  # <-- AJUSTA AQUÍ si tu GC de Sede 2 tiene otra IP
 
 # Gestor de Almacenamiento (GA)
 echo "[1/5] Iniciando Gestor de Almacenamiento (GA)..."
