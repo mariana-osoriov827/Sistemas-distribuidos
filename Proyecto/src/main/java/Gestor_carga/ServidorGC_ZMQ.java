@@ -179,14 +179,9 @@ public class ServidorGC_ZMQ {
                                 publisher.send(mensaje);
                                 System.out.println("GC publicó " + tipo + ": " + mensaje);
                                 // Esperar resultado real del actor (bloqueante, timeout opcional)
-                                String resultado = esperarResultadoActor(id, 2000);
+                                String resultado = esperarResultadoActor(id, 2000); // Espera solo 2 segundos
                                 int waited = 2000;
-                                while ((resultado == null || resultado.trim().isEmpty() || "PENDING".equals(resultado)) && waited < 10000) {
-                                    // Esperar hasta 10 segundos en total
-                                    try { Thread.sleep(200); } catch (InterruptedException e) { break; }
-                                    resultado = messageStatus.get(id);
-                                    waited += 200;
-                                }
+                                // Ya no espera más de 2 segundos, responde rápido y el cliente hará polling si es necesario
                                 if (resultado == null || resultado.trim().isEmpty() || "PENDING".equals(resultado)) {
                                     replier.send("ERROR|No se recibió respuesta del actor|" + id);
                                 } else if (resultado.startsWith("OK|")) {
