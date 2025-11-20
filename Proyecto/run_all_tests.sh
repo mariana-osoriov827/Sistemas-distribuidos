@@ -28,7 +28,10 @@ declare -A pruebas=(
 # Ejecutar cada prueba y guardar la salida
 
 # Configura la IP o hostname del servidor aquí:
+
+# IPs de las sedes
 SEDE1_IP="10.43.103.49"
+SEDE2_IP="10.43.102.177"
 REP_PORT=5556
 
 
@@ -37,29 +40,43 @@ THREADS_LIST=(1 2 3 4)
 REPS=30
 
 
-for caso in "${!pruebas[@]}"; do
-  entrada=${pruebas[$caso]}
-  for threads in "${THREADS_LIST[@]}"; do
-    out_file="${caso}_T${threads}.dat"
-    echo "$caso" > "$out_file"
-    for rep in $(seq 1 $REPS); do
-      if [[ $caso == PER-01 ]]; then
-        # Comparar archivos para PER-01 (no tiene sentido con hilos, pero se mantiene para consistencia)
-        diff $entrada >> "$out_file"
-      else
-        start=$(date +%s%N)
-        pids=()
-        for t in $(seq 1 $threads); do
-          ./cliente.sh $SEDE1_IP $entrada > /dev/null 2>&1 &
-          pids+=("$!")
-        done
-        for pid in "${pids[@]}"; do
-          wait $pid
-        done
-        end=$(date +%s%N)
-        elapsed=$(( (end - start)/1000000 ))
-        echo "$elapsed" >> "$out_file"
-      fi
+
+for sede in "SEDE1" "SEDE2"; do
+  if [ "$sede" == "SEDE1" ]; then
+    IP="$SEDE1_IP"
+  else
+    IP="$SEDE2_IP"
+  fi
+  for caso in "${!pruebas[@]}"; do
+    entrada=${pruebas[$caso]}
+    for threads in "${THREADS_LIST[@]}"; do
+      out_file="${caso}_${sede}_T${threads}.dat"
+      echo "$caso" > "$out_file"
+      for rep in $(seq 1 $REPS); do
+        if [[ $caso == PER-01 ]]; then
+          diff $entrada >> "$out_file"
+        else
+          start=$(date +%s%N)
+          pids=()
+          tmpfiles=()
+          for t in $(seq 1 $threads); do
+            tmpfile=$(mktemp)
+            ./cliente.sh $IP $entrada > "$tmpfile" 2>&1 &
+            pids+=("$!")
+            tmpfiles+=("$tmpfile")
+          done
+          for pid in "${pids[@]}"; do
+            wait $pid
+          done
+          end=$(date +%s%N)
+          elapsed=$(( (end - start)/1000000 ))
+          for tmpfile in "${tmpfiles[@]}"; do
+            cat "$tmpfile" >> "$out_file"
+            rm "$tmpfile"
+          done
+          echo "Tiempo: $elapsed ms" >> "$out_file"
+        fi
+      done
     done
   done
 done
