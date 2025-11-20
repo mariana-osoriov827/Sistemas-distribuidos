@@ -154,7 +154,7 @@ public class ServidorGC_ZMQ {
                                 publisher.send(mensaje);
                                 System.out.println("GC publicó PRESTAMO: " + mensaje);
                                 // Esperar resultado real del actor (bloqueante, timeout opcional)
-                                String resultado = esperarResultadoActor(messageStatus, id, 5000);
+                                String resultado = esperarResultadoActor(id, 5000);
                                 if (resultado == null) {
                                     replier.send("ERROR|No se recibió respuesta del actor");
                                 } else if (resultado.startsWith("OK")) {
@@ -173,11 +173,11 @@ public class ServidorGC_ZMQ {
                                     LocalDate.now().plusWeeks(1).format(fmt) : "null";
                                 String mensaje = String.format("%s|%s|%s|%s|%s|%s", 
                                     tipo, id, codigoLibro, usuarioId, fecha, nuevaFecha);
-                                publisher.send(mensaje);
                                 messageStatus.put(id, "PENDING");
+                                publisher.send(mensaje);
                                 System.out.println("GC publicó " + tipo + ": " + mensaje);
                                 // Esperar resultado real del actor (bloqueante, timeout opcional)
-                                String resultado = esperarResultadoActor(messageStatus, id, 5000);
+                                String resultado = esperarResultadoActor(id, 5000);
                                 if (resultado == null) {
                                     replier.send("ERROR|No se recibió respuesta del actor");
                                 } else if (resultado.startsWith("OK")) {
@@ -288,14 +288,13 @@ public class ServidorGC_ZMQ {
     }
     
     // --- Agregar función auxiliar para esperar resultado del actor ---
-    private static String esperarResultadoActor(Map<String, String> messageStatus, String id, int timeoutMs) {
+    private String esperarResultadoActor(String id, int timeoutMs) {
         int waited = 0;
         int interval = 50;
         String status;
         while (waited < timeoutMs) {
             status = messageStatus.get(id);
             if (status != null && !"PENDING".equals(status)) {
-                // Si el actor reporta un mensaje de error, debe estar en el formato "FAILED|mensaje"
                 messageStatus.remove(id); // Limpiar estado
                 if (status.startsWith("FAILED") || status.startsWith("ERROR")) {
                     return status;
