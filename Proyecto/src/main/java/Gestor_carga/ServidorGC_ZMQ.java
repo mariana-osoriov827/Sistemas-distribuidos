@@ -179,8 +179,8 @@ public class ServidorGC_ZMQ {
                                 publisher.send(mensaje);
                                 System.out.println("GC publicó " + tipo + ": " + mensaje);
                                 // Esperar resultado real del actor (bloqueante, timeout opcional)
-                                String resultado = esperarResultadoActor(id, 5000);
-                                if (resultado == null) {
+                                String resultado = esperarResultadoActor(id, 2000);
+                                if (resultado == null || resultado.trim().isEmpty()) {
                                     replier.send("ERROR|No se recibió respuesta del actor");
                                 } else if (resultado.startsWith("OK|")) {
                                     // Si el actor envió un mensaje de éxito, propagarlo
@@ -191,8 +191,15 @@ public class ServidorGC_ZMQ {
                                     replier.send("OK|" + msg);
                                 } else if (resultado.equals("OK")) {
                                     replier.send("OK|" + ("DEVOLUCION".equals(tipo) ? "Devolución registrada" : "Renovación exitosa"));
+                                } else if (resultado.startsWith("FAILED|")) {
+                                    String msg = resultado.length() > 7 ? resultado.substring(7) : "Error desconocido";
+                                    replier.send("ERROR|" + msg);
+                                } else if (resultado.startsWith("ERROR|")) {
+                                    String msg = resultado.length() > 6 ? resultado.substring(6) : "Error desconocido";
+                                    replier.send("ERROR|" + msg);
                                 } else {
-                                    replier.send(resultado);
+                                    // Si el resultado es inesperado, mostrarlo como info
+                                    replier.send("INFO|" + resultado);
                                 }
                                 System.out.println("GC respondió " + tipo + ": " + (resultado != null ? resultado : "sin respuesta"));
                                 
@@ -241,7 +248,7 @@ public class ServidorGC_ZMQ {
             
             try {
                 java.net.Socket socket = new java.net.Socket();
-                socket.connect(new java.net.InetSocketAddress(gaHost, gaPort), 2000);
+                socket.connect(new java.net.InetSocketAddress(gaHost, gaPort), 10000);
                 socket.setSoTimeout(3000);
                 
                 java.io.PrintWriter out = new java.io.PrintWriter(socket.getOutputStream(), true);

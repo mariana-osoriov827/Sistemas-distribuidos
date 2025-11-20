@@ -97,14 +97,14 @@ public class ActorClient_ZMQ {
                     resultMsg = "RESULT|" + messageId + "|OK|" + okMsg + "|" + tipo;
                 } else {
                     String errorMsg = "Error desconocido";
-                    if (response != null) {
-                        if (response.startsWith("FAILED|")) {
-                            errorMsg = response.substring(7);
-                        } else if (response.startsWith("ERROR|")) {
-                            errorMsg = response.substring(6);
-                        } else {
-                            errorMsg = response;
-                        }
+                    if (response == null || response.trim().isEmpty()) {
+                        errorMsg = "No se recibió respuesta del GA";
+                    } else if (response.startsWith("FAILED|")) {
+                        errorMsg = response.substring(7);
+                    } else if (response.startsWith("ERROR|")) {
+                        errorMsg = response.substring(6);
+                    } else {
+                        errorMsg = response;
                     }
                     resultMsg = "RESULT|" + messageId + "|FAILED|" + errorMsg + "|" + tipo;
                 }

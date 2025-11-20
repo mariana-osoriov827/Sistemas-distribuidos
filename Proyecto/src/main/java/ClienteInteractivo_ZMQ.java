@@ -146,7 +146,9 @@ public class ClienteInteractivo_ZMQ {
     }
     
     private static String formatResponse(String response) {
-        if (response.startsWith("OK|")) {
+        if (response == null || response.trim().isEmpty()) {
+            return "[ERROR] Respuesta vacía del servidor";
+        } else if (response.startsWith("OK|")) {
             // Si la respuesta tiene más de un campo, solo mostrar el mensaje principal
             String[] parts = response.split("\\|", 3);
             if (parts.length >= 2) {
@@ -157,6 +159,8 @@ public class ClienteInteractivo_ZMQ {
             }
         } else if (response.startsWith("ERROR") || response.startsWith("FAILED")) {
             return "[ERROR] " + response.replaceFirst("(ERROR|FAILED)\\|", "");
+        } else if (response.startsWith("INFO|")) {
+            return "[INFO] " + response.substring(5);
         } else {
             return "[INFO] " + response;
         }
