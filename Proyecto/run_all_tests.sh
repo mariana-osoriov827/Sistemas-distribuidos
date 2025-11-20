@@ -31,20 +31,36 @@ declare -A pruebas=(
 SEDE1_IP="localhost"
 REP_PORT=5556
 
+
+# Configuración de hilos y repeticiones
+THREADS_LIST=(1 2 4)
+REPS=30
+
 for caso in "${!pruebas[@]}"; do
   entrada=${pruebas[$caso]}
-  echo "Ejecutando $caso con entrada: $entrada"
-  if [[ $caso == PER-01 ]]; then
-    # Comparar archivos para PER-01
-    diff $entrada > "$caso.dat"
-  else
-    start=$(date +%s%N)
-    ./cliente.sh $SEDE1_IP $entrada > "$caso.dat" 2>&1
-    end=$(date +%s%N)
-    elapsed=$(( (end - start)/1000000 ))
-    echo "Tiempo de ejecución: $elapsed ms" >> "$caso.dat"
-  fi
-  echo "Salida guardada en $caso.dat"
+  for threads in "${THREADS_LIST[@]}"; do
+    echo "Ejecutando $caso con $threads hilo(s) x$REPS repeticiones. Entrada: $entrada"
+    for rep in $(seq 1 $REPS); do
+      if [[ $caso == PER-01 ]]; then
+        # Comparar archivos para PER-01 (no tiene sentido con hilos, pero se mantiene para consistencia)
+        diff $entrada > "${caso}_T${threads}_R${rep}.dat"
+      else
+        start=$(date +%s%N)
+        pids=()
+        for t in $(seq 1 $threads); do
+          ./cliente.sh $SEDE1_IP $entrada > "${caso}_T${threads}_R${rep}_H${t}.dat" 2>&1 &
+          pids+=("$!")
+        done
+        for pid in "${pids[@]}"; do
+          wait $pid
+        done
+        end=$(date +%s%N)
+        elapsed=$(( (end - start)/1000000 ))
+        echo "Tiempo de ejecución total para $threads hilo(s): $elapsed ms" >> "${caso}_T${threads}_R${rep}.dat"
+      fi
+      echo "Salida guardada en ${caso}_T${threads}_R${rep}.dat"
+    done
+  done
 done
 
 echo "Todas las pruebas han sido ejecutadas."
