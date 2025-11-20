@@ -284,10 +284,12 @@ public class ServidorGC_ZMQ {
     private static String esperarResultadoActor(Map<String, String> messageStatus, String id, int timeoutMs) {
         int waited = 0;
         int interval = 50;
+        String status;
         while (waited < timeoutMs) {
-            String status = messageStatus.get(id);
+            status = messageStatus.get(id);
             if (status != null && !"PENDING".equals(status)) {
                 // Si el actor reporta un mensaje de error, debe estar en el formato "FAILED|mensaje"
+                messageStatus.remove(id); // Limpiar estado
                 if (status.startsWith("FAILED") || status.startsWith("ERROR")) {
                     return status;
                 } else if (status.startsWith("OK")) {
@@ -302,6 +304,13 @@ public class ServidorGC_ZMQ {
             }
             waited += interval;
         }
+        // Última comprobación por si el resultado llegó justo después del timeout
+        status = messageStatus.get(id);
+        if (status != null && !"PENDING".equals(status)) {
+            messageStatus.remove(id);
+            return status;
+        }
+        messageStatus.remove(id);
         return null;
     }
     
