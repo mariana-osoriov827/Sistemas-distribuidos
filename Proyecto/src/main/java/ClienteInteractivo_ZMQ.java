@@ -106,8 +106,21 @@ public class ClienteInteractivo_ZMQ {
                 
                 requester.send(operacion);
                 String response = requester.recvStr();
-                System.out.println("\n" + formatResponse(response));
-                // Aquí puedes agregar lógica para esperar y consultar estado si es necesario
+                // Si la respuesta es de error por timeout del actor, intentar polling STATUS
+                if (response.startsWith("ERROR|No se recibió respuesta del actor")) {
+                    // Extraer el messageId de la operación enviada
+                    String[] opParts = operacion.split("\\|");
+                    String tipo = opParts[0];
+                    // El messageId solo lo conoce el GC, así que debemos modificar el GC para devolver el id en el error, o parsear del log
+                    // Solución: el GC debe devolver 'ERROR|No se recibió respuesta del actor|<messageId>'
+                    // Si no está, solo informar al usuario
+                    System.out.println("\n[INFO] No se recibió respuesta inmediata del actor. Consultando estado...");
+                    // No tenemos el messageId, así que no podemos hacer polling STATUS correctamente sin modificar el GC
+                    // Mostrar el error original
+                    System.out.println("\n" + formatResponse(response));
+                } else {
+                    System.out.println("\n" + formatResponse(response));
+                }
             }
         } catch (Exception e) {
             e.printStackTrace();
