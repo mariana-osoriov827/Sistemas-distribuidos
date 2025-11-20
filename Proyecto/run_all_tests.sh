@@ -36,19 +36,23 @@ REP_PORT=5556
 THREADS_LIST=(1 2 4)
 REPS=30
 
+
 for caso in "${!pruebas[@]}"; do
   entrada=${pruebas[$caso]}
   for threads in "${THREADS_LIST[@]}"; do
+    out_file="${caso}_T${threads}.dat"
+    echo "==== $caso | Hilos: $threads ====" > "$out_file"
     echo "Ejecutando $caso con $threads hilo(s) x$REPS repeticiones. Entrada: $entrada"
     for rep in $(seq 1 $REPS); do
       if [[ $caso == PER-01 ]]; then
         # Comparar archivos para PER-01 (no tiene sentido con hilos, pero se mantiene para consistencia)
-        diff $entrada > "${caso}_T${threads}_R${rep}.dat"
+        diff $entrada >> "$out_file"
       else
+        echo "--- Repetición $rep ---" >> "$out_file"
         start=$(date +%s%N)
         pids=()
         for t in $(seq 1 $threads); do
-          ./cliente.sh $SEDE1_IP $entrada > "${caso}_T${threads}_R${rep}_H${t}.dat" 2>&1 &
+          ./cliente.sh $SEDE1_IP $entrada >> "$out_file" 2>&1 &
           pids+=("$!")
         done
         for pid in "${pids[@]}"; do
@@ -56,10 +60,10 @@ for caso in "${!pruebas[@]}"; do
         done
         end=$(date +%s%N)
         elapsed=$(( (end - start)/1000000 ))
-        echo "Tiempo de ejecución total para $threads hilo(s): $elapsed ms" >> "${caso}_T${threads}_R${rep}.dat"
+        echo "Tiempo de ejecución total para $threads hilo(s) en repetición $rep: $elapsed ms" >> "$out_file"
       fi
-      echo "Salida guardada en ${caso}_T${threads}_R${rep}.dat"
     done
+    echo "Salida guardada en $out_file"
   done
 done
 
