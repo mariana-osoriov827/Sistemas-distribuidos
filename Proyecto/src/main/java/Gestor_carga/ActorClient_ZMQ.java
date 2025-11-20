@@ -86,7 +86,15 @@ public class ActorClient_ZMQ {
                 boolean operacionExitosa = response != null && response.startsWith("OK");
                 String resultMsg;
                 if (operacionExitosa) {
-                    resultMsg = "RESULT|" + messageId + "|OK||" + tipo;
+                    String okMsg;
+                    if ("DEVOLUCION".equals(tipo)) {
+                        okMsg = "Devolución registrada";
+                    } else if ("RENOVACION".equals(tipo)) {
+                        okMsg = "Renovación exitosa";
+                    } else {
+                        okMsg = "Operación exitosa";
+                    }
+                    resultMsg = "RESULT|" + messageId + "|OK|" + okMsg + "|" + tipo;
                 } else {
                     String errorMsg = "Error desconocido";
                     if (response != null) {
