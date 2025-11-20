@@ -58,23 +58,16 @@ for sede in "SEDE1" "SEDE2"; do
         else
           start=$(date +%s%N)
           pids=()
-          tmpfiles=()
           for t in $(seq 1 $threads); do
-            tmpfile=$(mktemp)
-            ./cliente.sh $IP $entrada > "$tmpfile" 2>&1 &
+            ./cliente.sh $IP $entrada > /dev/null 2>&1 &
             pids+=("$!")
-            tmpfiles+=("$tmpfile")
           done
           for pid in "${pids[@]}"; do
             wait $pid
           done
           end=$(date +%s%N)
           elapsed=$(( (end - start)/1000000 ))
-          for tmpfile in "${tmpfiles[@]}"; do
-            cat "$tmpfile" >> "$out_file"
-            rm "$tmpfile"
-          done
-          echo "Tiempo: $elapsed ms" >> "$out_file"
+          echo "$elapsed" >> "$out_file"
         fi
       done
     done
