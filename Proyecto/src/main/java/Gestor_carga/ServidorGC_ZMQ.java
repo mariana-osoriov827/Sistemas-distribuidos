@@ -188,7 +188,7 @@ public class ServidorGC_ZMQ {
                                     waited += 200;
                                 }
                                 if (resultado == null || resultado.trim().isEmpty() || "PENDING".equals(resultado)) {
-                                    replier.send("ERROR|No se recibió respuesta del actor");
+                                    replier.send("ERROR|No se recibió respuesta del actor|" + id);
                                 } else if (resultado.startsWith("OK|")) {
                                     // Si el actor envió un mensaje de éxito, propagarlo
                                     String[] okParts = resultado.split("\\|", 2);
