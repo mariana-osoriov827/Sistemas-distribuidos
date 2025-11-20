@@ -1,2 +1,2 @@
 # Prueba REN-02
-RENOVACION|003|user3
+RENOVACION|102|user3

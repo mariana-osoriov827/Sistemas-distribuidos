@@ -1,2 +1,2 @@
 # Prueba PRE-03
-PRESTAMO|006|user6
+PRESTAMO|105|user6

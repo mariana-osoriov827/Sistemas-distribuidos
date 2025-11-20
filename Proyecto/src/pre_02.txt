@@ -1,2 +1,2 @@
 # Prueba PRE-02
-PRESTAMO|005|user5
+PRESTAMO|104|user5

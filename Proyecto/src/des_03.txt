@@ -1,2 +1,2 @@
 # Prueba DES-03
-RENOVACION|001|user1
+RENOVACION|100|user1

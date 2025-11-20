@@ -1,2 +1,2 @@
 # Prueba PER-01
-PRESTAMO|007|user7
+PRESTAMO|106|user7

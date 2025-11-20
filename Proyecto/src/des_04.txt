@@ -1,2 +1,2 @@
 # Prueba DES-04
-INFO|001|user1
+INFO|100|user1
