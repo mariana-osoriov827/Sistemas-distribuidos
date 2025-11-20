@@ -97,17 +97,22 @@ public class ServidorGC_ZMQ {
                     String[] resultParts = resultMsg.split("\\|", 5);
                     if (resultParts.length >= 4) {
                         String msgId = resultParts[1];
-                        String status = resultParts[2];
-                        String tipo = resultParts[resultParts.length - 1];
-                        String mensajeCompleto;
-                        if (resultParts.length == 5) {
-                            // Hay mensaje de error real
-                            mensajeCompleto = status + "|" + resultParts[3];
+                        // Solo registrar si el id sigue en el mapa (no expiró por timeout)
+                        if (messageStatus.containsKey(msgId)) {
+                            String status = resultParts[2];
+                            String tipo = resultParts[resultParts.length - 1];
+                            String mensajeCompleto;
+                            if (resultParts.length == 5) {
+                                // Hay mensaje de error real
+                                mensajeCompleto = status + "|" + resultParts[3];
+                            } else {
+                                mensajeCompleto = status;
+                            }
+                            messageStatus.put(msgId, mensajeCompleto);
+                            System.out.println("GC registró resultado " + tipo + " [" + msgId + "]: " + mensajeCompleto);
                         } else {
-                            mensajeCompleto = status;
+                            // Resultado tardío, ya expiró el id: ignorar y no imprimir
                         }
-                        messageStatus.put(msgId, mensajeCompleto);
-                        System.out.println("GC registró resultado " + tipo + " [" + msgId + "]: " + mensajeCompleto);
                     }
                 }
                 
