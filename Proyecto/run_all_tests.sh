@@ -26,6 +26,11 @@ declare -A pruebas=(
 )
 
 # Ejecutar cada prueba y guardar la salida
+
+# Configura la IP o hostname del servidor aquí:
+SEDE1_IP="localhost"
+REP_PORT=5556
+
 for caso in "${!pruebas[@]}"; do
   entrada=${pruebas[$caso]}
   echo "Ejecutando $caso con entrada: $entrada"
@@ -33,7 +38,11 @@ for caso in "${!pruebas[@]}"; do
     # Comparar archivos para PER-01
     diff $entrada > "$caso.dat"
   else
-    ./cliente.sh $entrada > "$caso.dat" 2>&1
+    start=$(date +%s%N)
+    ./cliente.sh $SEDE1_IP $entrada > "$caso.dat" 2>&1
+    end=$(date +%s%N)
+    elapsed=$(( (end - start)/1000000 ))
+    echo "Tiempo de ejecución: $elapsed ms" >> "$caso.dat"
   fi
   echo "Salida guardada en $caso.dat"
 done
