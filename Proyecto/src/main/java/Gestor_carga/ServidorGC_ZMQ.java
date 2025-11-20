@@ -107,6 +107,9 @@ public class ServidorGC_ZMQ {
                         }
                         messageStatus.put(msgId, mensajeCompleto);
                         System.out.println("GC registró resultado " + tipo + " [" + msgId + "]: " + mensajeCompleto);
+                        System.out.println("[DEBUG GC] messageStatus actual: " + messageStatus);
+                    } else {
+                        System.out.println("[DEBUG GC] Resultado de actor con formato inválido: " + resultMsg);
                     }
                 }
                 
@@ -131,11 +134,14 @@ public class ServidorGC_ZMQ {
                             // STATUS: Consultar estado de operación asíncrona
                             String messageId = parts[1];
                             String status = messageStatus.getOrDefault(messageId, "PENDING");
+                            System.out.println("[DEBUG GC] STATUS solicitado para messageId: " + messageId);
+                            System.out.println("[DEBUG GC] messageStatus actual: " + messageStatus);
                             replier.send("STATUS|" + status);
                             System.out.println("GC respondió STATUS para " + messageId + ": " + status);
                             // Limpiar solo si ya no es PENDING
                             if (!"PENDING".equals(status)) {
                                 messageStatus.remove(messageId);
+                                System.out.println("[DEBUG GC] messageStatus tras limpiar: " + messageStatus);
                             }
                         } else if ("CANCEL".equals(tipo)) {
                             // CANCEL: Cliente canceló operación
