@@ -182,7 +182,14 @@ public class ServidorGC_ZMQ {
                                 String resultado = esperarResultadoActor(id, 5000);
                                 if (resultado == null) {
                                     replier.send("ERROR|No se recibió respuesta del actor");
-                                } else if (resultado.startsWith("OK")) {
+                                } else if (resultado.startsWith("OK|")) {
+                                    // Si el actor envió un mensaje de éxito, propagarlo
+                                    String[] okParts = resultado.split("\\|", 2);
+                                    String msg = okParts.length > 1 && !okParts[1].isEmpty()
+                                        ? okParts[1]
+                                        : ("DEVOLUCION".equals(tipo) ? "Devolución registrada" : "Renovación exitosa");
+                                    replier.send("OK|" + msg);
+                                } else if (resultado.equals("OK")) {
                                     replier.send("OK|" + ("DEVOLUCION".equals(tipo) ? "Devolución registrada" : "Renovación exitosa"));
                                 } else {
                                     replier.send(resultado);
