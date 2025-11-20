@@ -1,0 +1,2 @@
+# Prueba PER-01 replicada
+PRESTAMO|007|user7

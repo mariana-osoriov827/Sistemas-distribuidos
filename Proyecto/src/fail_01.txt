@@ -1,0 +1,2 @@
+# Prueba FAIL-01
+PRESTAMO|999|userX

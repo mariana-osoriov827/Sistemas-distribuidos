@@ -1,0 +1,2 @@
+# Prueba PER-02
+PRESTAMO|008|user8

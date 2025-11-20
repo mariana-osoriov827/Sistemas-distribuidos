@@ -1,0 +1,2 @@
+# Prueba DES-01
+PRESTAMO|001|user1
