@@ -33,63 +33,67 @@ public class ActorPrestamo_ZMQ {
         int gaPort = Integer.parseInt(gaParts[1]);
         
         try (ZContext context = new ZContext()) {
-            
             // Socket SUB para recibir mensajes de PRESTAMO del GC
             ZMQ.Socket subscriber = context.createSocket(ZMQ.SUB);
             subscriber.connect("tcp://" + gcHost + ":" + gcPubPort);
             subscriber.subscribe("PRESTAMO".getBytes());
             System.out.println("ActorPrestamo suscrito a tópico PRESTAMO en " + gcHost + ":" + gcPubPort);
             System.out.println("ActorPrestamo conectado al GA en " + gaHost + ":" + gaPort);
-            
+
+            // Socket PUSH para reportar resultados al GC (puerto PUB + 2 = REP + 1)
+            int resultPort = gcPubPort + 2;
+            ZMQ.Socket resultPusher = context.createSocket(ZMQ.PUSH);
+            resultPusher.connect("tcp://" + gcHost + ":" + resultPort);
+            System.out.println("ActorPrestamo reportará resultados en puerto " + resultPort);
+
             while (!Thread.currentThread().isInterrupted()) {
-                
                 // Recibir mensaje del GC
                 String mensaje = subscriber.recvStr();
                 System.out.println(java.time.LocalDateTime.now() + " - ActorPrestamo recibió: " + mensaje);
-                
                 // Formato: PRESTAMO|id|codigoLibro|usuarioId|fecha|null
                 String[] parts = mensaje.split("\\|");
                 if (parts.length < 5) {
                     System.err.println("Formato de mensaje inválido");
                     continue;
                 }
-                
                 String tipo = parts[0];
                 String messageId = parts[1];
                 String codigoLibro = parts[2];
                 String usuarioId = parts[3];
-                
+
                 // Procesar solicitud de préstamo en el GA de forma SÍNCRONA
                 boolean prestamoConcedido = false;
                 String respuestaCompleta = "";
-                
                 try (Socket gaSocket = new Socket(gaHost, gaPort);
                      PrintWriter out = new PrintWriter(gaSocket.getOutputStream(), true);
                      BufferedReader in = new BufferedReader(new InputStreamReader(gaSocket.getInputStream()))) {
-                    
                     String request = "PRESTAMO|" + codigoLibro + "|" + usuarioId;
                     out.println(request);
-                    
                     String response = in.readLine();
                     prestamoConcedido = response != null && response.startsWith("OK");
                     respuestaCompleta = response;
-                    
                     if (prestamoConcedido) {
                         System.out.println("[OK] ActorPrestamo: PRÉSTAMO OTORGADO para libro " + codigoLibro);
+                        // Reportar resultado OK al GC
+                        String resultMsg = "RESULT|" + messageId + "|OK|PRESTAMO";
+                        resultPusher.send(resultMsg);
+                        System.out.println("ActorPrestamo reportó: " + resultMsg);
                     } else {
-                        System.out.println("[FAIL] ActorPrestamo: PRÉSTAMO DENEGADO para libro " + codigoLibro + 
-                                         " - " + respuestaCompleta);
+                        System.out.println("[FAIL] ActorPrestamo: PRÉSTAMO DENEGADO para libro " + codigoLibro + " - " + respuestaCompleta);
+                        // Reportar resultado FAILED y mensaje de error real al GC
+                        String errorMsg = respuestaCompleta != null ? respuestaCompleta : "FAILED|Error desconocido";
+                        String resultMsg = "RESULT|" + messageId + "|" + errorMsg + "|PRESTAMO";
+                        resultPusher.send(resultMsg);
+                        System.out.println("ActorPrestamo reportó: " + resultMsg);
                     }
-                    
                 } catch (Exception e) {
                     System.err.println("Error conectando al GA: " + e.getMessage());
                     System.out.println("[ERROR] ActorPrestamo: PRÉSTAMO FALLÓ por error de conexión");
+                    String resultMsg = "RESULT|" + messageId + "|FAILED|PRESTAMO";
+                    resultPusher.send(resultMsg);
+                    System.out.println("ActorPrestamo reportó: " + resultMsg);
                 }
-                
-                // Nota: En una arquitectura más compleja, aquí enviaríamos una respuesta
-                // de vuelta al GC o directamente al PS mediante un canal de retorno
             }
-            
         } catch (Exception e) {
             e.printStackTrace();
         }
