@@ -180,7 +180,14 @@ public class ServidorGC_ZMQ {
                                 System.out.println("GC publicó " + tipo + ": " + mensaje);
                                 // Esperar resultado real del actor (bloqueante, timeout opcional)
                                 String resultado = esperarResultadoActor(id, 2000);
-                                if (resultado == null || resultado.trim().isEmpty()) {
+                                int waited = 2000;
+                                while ((resultado == null || resultado.trim().isEmpty() || "PENDING".equals(resultado)) && waited < 10000) {
+                                    // Esperar hasta 10 segundos en total
+                                    try { Thread.sleep(200); } catch (InterruptedException e) { break; }
+                                    resultado = messageStatus.get(id);
+                                    waited += 200;
+                                }
+                                if (resultado == null || resultado.trim().isEmpty() || "PENDING".equals(resultado)) {
                                     replier.send("ERROR|No se recibió respuesta del actor");
                                 } else if (resultado.startsWith("OK|")) {
                                     // Si el actor envió un mensaje de éxito, propagarlo
