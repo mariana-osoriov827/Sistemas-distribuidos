@@ -143,8 +143,8 @@ public class ServidorGC_ZMQ {
                                 String fecha = LocalDate.now().format(fmt);
                                 String mensaje = String.format("%s|%s|%s|%s|%s|%s", 
                                     tipo, id, codigoLibro, usuarioId, fecha, "null");
+                                messageStatus.put(id, "PENDING"); // Poner antes de enviar
                                 publisher.send(mensaje);
-                                messageStatus.put(id, "PENDING");
                                 System.out.println("GC publicó PRESTAMO: " + mensaje);
                                 // Esperar resultado real del actor (bloqueante, timeout opcional)
                                 String resultado = esperarResultadoActor(messageStatus, id, 5000);
