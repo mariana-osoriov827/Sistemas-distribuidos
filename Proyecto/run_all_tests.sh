@@ -33,7 +33,7 @@ REP_PORT=5556
 
 
 # Configuración de hilos y repeticiones
-THREADS_LIST=(1 2 4)
+THREADS_LIST=(1 2 3 4)
 REPS=30
 
 
