@@ -139,7 +139,10 @@ public class ServidorGC_ZMQ {
                             String status = messageStatus.getOrDefault(messageId, "PENDING");
                             replier.send("STATUS|" + status);
                             System.out.println("GC respondió STATUS para " + messageId + ": " + status);
-                            
+                            // Limpiar solo si ya no es PENDING
+                            if (!"PENDING".equals(status)) {
+                                messageStatus.remove(messageId);
+                            }
                         } else if ("CANCEL".equals(tipo)) {
                             // CANCEL: Cliente canceló operación
                             replier.send("OK|Cancelado");
