@@ -113,12 +113,12 @@ public class ClienteInteractivo_ZMQ {
                     String messageId = errParts.length >= 3 ? errParts[2] : null;
                     if (messageId != null) {
                         System.out.println("\n[INFO] No se recibió respuesta inmediata del actor. Consultando estado...");
-                        // Polling STATUS hasta obtener respuesta real o agotar reintentos
+                        // Polling STATUS hasta obtener respuesta real o agotar reintentos (hasta 10s)
                         String status = "PENDING";
                         int intentos = 0;
-                        int maxIntentos = 5;
+                        int maxIntentos = 20; // 20*500ms = 10s
                         while ("PENDING".equals(status) && intentos < maxIntentos) {
-                            try { Thread.sleep(300); } catch (InterruptedException e) { break; }
+                            try { Thread.sleep(500); } catch (InterruptedException e) { break; }
                             requester.send("STATUS|" + messageId);
                             String statusResp = requester.recvStr();
                             if (statusResp.startsWith("STATUS|")) {

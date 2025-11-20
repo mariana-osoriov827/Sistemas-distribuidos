@@ -318,12 +318,8 @@ public class ServidorGC_ZMQ {
         while (waited < timeoutMs) {
             status = messageStatus.get(id);
             if (status != null && !"PENDING".equals(status)) {
-                messageStatus.remove(id); // Limpiar estado
-                if (status.startsWith("FAILED") || status.startsWith("ERROR")) {
-                    return status;
-                } else if (status.startsWith("OK")) {
-                    return status;
-                }
+                // No eliminar aquí, solo devolver el resultado
+                return status;
             }
             try {
                 Thread.sleep(interval);
@@ -336,10 +332,8 @@ public class ServidorGC_ZMQ {
         // Última comprobación por si el resultado llegó justo después del timeout
         status = messageStatus.get(id);
         if (status != null && !"PENDING".equals(status)) {
-            messageStatus.remove(id);
             return status;
         }
-        messageStatus.remove(id);
         return null;
     }
     
