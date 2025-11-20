@@ -28,7 +28,7 @@ declare -A pruebas=(
 # Ejecutar cada prueba y guardar la salida
 
 # Configura la IP o hostname del servidor aquí:
-SEDE1_IP="localhost"
+SEDE1_IP="10.43.103.49"
 REP_PORT=5556
 
 
