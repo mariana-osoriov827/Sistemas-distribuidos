@@ -1,4 +1,3 @@
-    private String usuarioActual; // Nuevo: usuario que tiene el ejemplar prestado
 /**************************************************************************************
 * Fecha: 10/10/2025
 * Autor: Gabriel Jaramillo, Roberth Méndez, Mariana Osorio Vasquez, Juan Esteban Vera
@@ -21,6 +20,7 @@ public class Ejemplar implements Serializable {
     private char estado; 
     private String fecha;
     private int contadorRenovaciones; // Máximo 2 renovaciones permitidas
+    private String usuarioActual; // usuario que tiene el ejemplar prestado
 
     public Ejemplar(int id, char estado, String fecha) {
         this.id = id;
@@ -42,15 +42,16 @@ public class Ejemplar implements Serializable {
             this.contadorRenovaciones = 0;
             this.usuarioActual = null;
         }
-        public String getUsuarioActual() {
-            return usuarioActual;
-        }
-
-        public void setUsuarioActual(String usuarioActual) {
-            this.usuarioActual = usuarioActual;
-        }
     }
-    
+
+    public String getUsuarioActual() {
+        return usuarioActual;
+    }
+
+    public void setUsuarioActual(String usuarioActual) {
+        this.usuarioActual = usuarioActual;
+    }
+
     public void setFecha(String fecha) { this.fecha = fecha; }
     
     public boolean puedeRenovar() {
@@ -61,4 +62,3 @@ public class Ejemplar implements Serializable {
         this.contadorRenovaciones++;
     }
 }
-

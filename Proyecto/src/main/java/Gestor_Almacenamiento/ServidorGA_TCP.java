@@ -111,7 +111,7 @@ public class ServidorGA_TCP {
                     break;
                     
                 case "PRESTAMO":
-                    resultado = bd.prestarEjemplar(codigoLibro);
+                    resultado = bd.prestarEjemplar(codigoLibro, usuarioId);
                     respuesta = resultado ? "OK|Préstamo otorgado" : "FAILED|No disponible";
                     if (resultado) encolarReplicacion("PRESTAMO", codigoLibro, usuarioId, null);
                     break;
