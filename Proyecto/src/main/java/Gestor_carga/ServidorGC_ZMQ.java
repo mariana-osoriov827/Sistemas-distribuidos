@@ -138,50 +138,51 @@ public class ServidorGC_ZMQ {
                             String usuarioId = parts[2];
                         
                             if ("PRESTAMO".equals(tipo)) {
-                            // PRESTAMO: Síncrono - publicar para que Actor Préstamo lo procese
-                            // y esperar respuesta mediante un canal de vuelta
-                            String id = UUID.randomUUID().toString();
-                            String fecha = LocalDate.now().format(fmt);
-                            
-                            // Publicar solicitud de préstamo
-                            String mensaje = String.format("%s|%s|%s|%s|%s|%s", 
-                                tipo, id, codigoLibro, usuarioId, fecha, "null");
-                            publisher.send(mensaje);
-                            System.out.println("GC publicó PRESTAMO: " + mensaje);
-                            
-                            // El Actor de Préstamo procesará esto de forma síncrona con el GA
-                            // Por ahora, respondemos que se está procesando
-                            // En una implementación completa, necesitaríamos un canal de respuesta
-                            replier.send("OK|Préstamo en proceso");
-                            System.out.println("GC respondió préstamo: en proceso");
-                            
-                        } else if ("DEVOLUCION".equals(tipo) || "RENOVACION".equals(tipo)) {
-                            // DEVOLUCION/RENOVACION: Validar que el libro esté prestado ANTES de aceptar
-                            if (!validarPrestamo(codigoLibro)) {
-                                replier.send("ERROR|El libro " + codigoLibro + " no está prestado");
-                                System.out.println("GC rechazó " + tipo + ": libro no prestado");
-                            } else {
-                                // Validación exitosa - procesar asíncronamente
+                                // PRESTAMO: Publicar y esperar respuesta real del actor
+                                String id = UUID.randomUUID().toString();
+                                String fecha = LocalDate.now().format(fmt);
+                                String mensaje = String.format("%s|%s|%s|%s|%s|%s", 
+                                    tipo, id, codigoLibro, usuarioId, fecha, "null");
+                                publisher.send(mensaje);
+                                messageStatus.put(id, "PENDING");
+                                System.out.println("GC publicó PRESTAMO: " + mensaje);
+                                // Esperar resultado real del actor (bloqueante, timeout opcional)
+                                String resultado = esperarResultadoActor(messageStatus, id, 5000);
+                                if (resultado == null) {
+                                    replier.send("ERROR|No se recibió respuesta del actor");
+                                } else if (resultado.startsWith("OK")) {
+                                    replier.send("OK|Préstamo otorgado");
+                                } else {
+                                    // El actor debe propagar el mensaje de error del GA
+                                    replier.send(resultado);
+                                }
+                                System.out.println("GC respondió préstamo: " + (resultado != null ? resultado : "sin respuesta"));
+                                
+                            } else if ("DEVOLUCION".equals(tipo) || "RENOVACION".equals(tipo)) {
+                                // DEVOLUCION/RENOVACION: Publicar y esperar respuesta real del actor
                                 String id = UUID.randomUUID().toString();
                                 String fecha = LocalDate.now().format(fmt);
                                 String nuevaFecha = "RENOVACION".equals(tipo) ? 
                                     LocalDate.now().plusWeeks(1).format(fmt) : "null";
-                                
-                                // Responder al cliente inmediatamente
-                                replier.send("OK|Aceptado");
-                                System.out.println("GC aceptó " + tipo + " inmediatamente");
-                                
-                                // Publicar mensaje a los actores
                                 String mensaje = String.format("%s|%s|%s|%s|%s|%s", 
                                     tipo, id, codigoLibro, usuarioId, fecha, nuevaFecha);
                                 publisher.send(mensaje);
                                 messageStatus.put(id, "PENDING");
                                 System.out.println("GC publicó " + tipo + ": " + mensaje);
+                                // Esperar resultado real del actor (bloqueante, timeout opcional)
+                                String resultado = esperarResultadoActor(messageStatus, id, 5000);
+                                if (resultado == null) {
+                                    replier.send("ERROR|No se recibió respuesta del actor");
+                                } else if (resultado.startsWith("OK")) {
+                                    replier.send("OK|" + ("DEVOLUCION".equals(tipo) ? "Devolución registrada" : "Renovación exitosa"));
+                                } else {
+                                    replier.send(resultado);
+                                }
+                                System.out.println("GC respondió " + tipo + ": " + (resultado != null ? resultado : "sin respuesta"));
+                                
+                            } else {
+                                replier.send("ERROR|Tipo de operación desconocido");
                             }
-                            
-                        } else {
-                            replier.send("ERROR|Tipo de operación desconocido");
-                        }
                         } else {
                             replier.send("ERROR|Formato inválido - parámetros insuficientes");
                         }
@@ -277,6 +278,31 @@ public class ServidorGC_ZMQ {
         publisher.send(mensaje);
         messageStatus.put(id, "PENDING");
         System.out.println("GC publicó " + tipo + ": " + mensaje);
+    }
+    
+    // --- Agregar función auxiliar para esperar resultado del actor ---
+    private static String esperarResultadoActor(Map<String, String> messageStatus, String id, int timeoutMs) {
+        int waited = 0;
+        int interval = 50;
+        while (waited < timeoutMs) {
+            String status = messageStatus.get(id);
+            if (status != null && !"PENDING".equals(status)) {
+                // Si el actor reporta un mensaje de error, debe estar en el formato "FAILED|mensaje"
+                if (status.startsWith("FAILED") || status.startsWith("ERROR")) {
+                    return status;
+                } else if (status.startsWith("OK")) {
+                    return status;
+                }
+            }
+            try {
+                Thread.sleep(interval);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+            waited += interval;
+        }
+        return null;
     }
     
     public static void main(String[] args) {
