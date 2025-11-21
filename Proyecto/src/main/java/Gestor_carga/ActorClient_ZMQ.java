@@ -127,19 +127,22 @@ public class ActorClient_ZMQ {
     }
     
     public static void main(String[] args) {
-        if (args.length != 3) {
-            System.err.println("Uso: ActorClient_ZMQ <gcPubAddress> <gaList> <operationType>");
+        if (args.length != 4) {
+            System.err.println("Uso: java ActorClient_ZMQ <gcHost:pubPort> <gaHost1:port1[,gaHost2:port2]> <topic> <gcResultIp>");
+            System.out.println("Ejemplo: java ActorClient_ZMQ localhost:5555 localhost:5560,10.43.102.177:6560 DEVOLUCION 10.43.103.49");
             System.exit(1);
         }
-        
         try {
             String gcPubAddress = args[0];
             String gaList = args[1];
             String operationType = args[2].toUpperCase();
-            
-            ActorClient_ZMQ actor = new ActorClient_ZMQ(gcPubAddress, gaList, operationType);
+            String gcResultIp = args[3];
+            if (!operationType.equals("DEVOLUCION") && !operationType.equals("RENOVACION")) {
+                System.out.println("Error: tópico debe ser DEVOLUCION o RENOVACION");
+                System.exit(1);
+            }
+            ActorClient_ZMQ actor = new ActorClient_ZMQ(gcPubAddress, gaList, operationType, gcResultIp);
             actor.iniciar();
-            
         } catch (Exception e) {
             System.err.println("Error fatal en Actor Client: " + e.getMessage());
             e.printStackTrace();

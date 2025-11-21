@@ -162,19 +162,17 @@ public class ActorPrestamo_ZMQ {
     
     // El método principal debe recibir los argumentos del script
     public static void main(String[] args) {
-        // Argumentos esperados: 1. gcPubAddress, 2. gaList
-        if (args.length != 2) {
-            System.err.println("Uso: ActorPrestamo_ZMQ <gcPubAddress> <gaList>");
+        // Argumentos esperados: 1. gcPubAddress, 2. gaList, 3. gcResultIp
+        if (args.length != 3) {
+            System.err.println("Uso: ActorPrestamo_ZMQ <gcPubAddress> <gaList> <gcResultIp>");
             System.exit(1);
         }
-        
         try {
             String gcPubAddress = args[0]; // Ej: localhost:6555
             String gaList = args[1];       // Ej: localhost:6560,10.43.103.49:5560
-            
-            ActorPrestamo_ZMQ actor = new ActorPrestamo_ZMQ(gcPubAddress, gaList);
+            String gcResultIp = args[2];   // Ej: 10.43.103.49
+            ActorPrestamo_ZMQ actor = new ActorPrestamo_ZMQ(gcPubAddress, gaList, gcResultIp);
             actor.iniciar();
-            
         } catch (Exception e) {
             System.err.println("Error fatal en Actor Prestamo: " + e.getMessage());
             e.printStackTrace();
