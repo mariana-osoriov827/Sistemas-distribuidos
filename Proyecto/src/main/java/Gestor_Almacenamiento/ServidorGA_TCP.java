@@ -104,8 +104,15 @@ public class ServidorGA_TCP {
                     break;
                 }
                 case "VALIDAR_PRESTAMO": {
-                    boolean tienePrestamo = bd.tienePrestamo(codigoLibro);
-                    respuesta = "OK|" + tienePrestamo;
+                    if (parts.length == 3) {
+                        // Validar si el usuario específico tiene el libro
+                        boolean tienePrestamo = bd.usuarioYaTienePrestamo(codigoLibro, usuarioId);
+                        respuesta = "OK|" + tienePrestamo;
+                    } else {
+                        // Validar si alguien tiene el libro prestado
+                        boolean tienePrestamo = bd.tienePrestamo(codigoLibro);
+                        respuesta = "OK|" + tienePrestamo;
+                    }
                     break;
                 }
                 case "PRESTAMO": {

@@ -74,7 +74,7 @@ public class ActorPrestamo_ZMQ {
                 String userId = parts[2];
                 String messageId = parts[3];
                 // 1. Consultar disponibilidad al GA (BLOQUEANTE, con Failover)
-                String gaRequest = "VALIDAR_PRESTAMO|" + codigoLibro;
+                String gaRequest = "VALIDAR_PRESTAMO|" + codigoLibro + "|" + userId;
                 String gaResponse = sendAndReceiveGA_TCP(gaRequest);
                 String result;
                 if (gaResponse.startsWith("OK|true")) {
@@ -122,8 +122,8 @@ public class ActorPrestamo_ZMQ {
             try (Socket socket = new Socket()) {
                 socket.connect(new java.net.InetSocketAddress(gaHost, gaPort), gaTimeoutMs);
                 socket.setSoTimeout(gaTimeoutMs);
-                PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
-                BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+                PrintWriter out = new PrintWriter(new java.io.OutputStreamWriter(socket.getOutputStream(), java.nio.charset.StandardCharsets.UTF_8), true);
+                BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream(), java.nio.charset.StandardCharsets.UTF_8));
                 out.println(request);
                 String reply = in.readLine();
                 if (reply != null) {
