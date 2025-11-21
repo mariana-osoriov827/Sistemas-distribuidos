@@ -74,7 +74,7 @@ check_component "Gestor de Almacenamiento (GA)" $GA_PID "$GA_LOG"
 echo "[2/5] Iniciando Gestor de Carga (GC)..."
 GC_LOG=$(mktemp)
 # El GC recibe la lista de GAs para su Proxy
-java -cp "$CP" Gestor_carga.ServidorGC_ZMQ $SEDE $PUB_PORT $REP_PORT $GA_LIST > "$GC_LOG" 2>&水泥1 &
+java -cp "$CP" Gestor_carga.ServidorGC_ZMQ $SEDE $PUB_PORT $REP_PORT $GA_LIST > "$GC_LOG" 2>&1 &
 GC_PID=$!
 check_component "Gestor de Carga (GC)" $GC_PID "$GC_LOG"
 
