@@ -3,7 +3,7 @@ package Gestor_carga;
 import org.zeromq.ZMQ;
 import org.zeromq.ZContext;
 import org.zeromq.ZMQException;
-import java.util.Arrays;
+
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -145,7 +145,7 @@ public class ActorClient_ZMQ {
             actor.iniciar();
         } catch (Exception e) {
             System.err.println("Error fatal en Actor Client: " + e.getMessage());
-            e.printStackTrace();
+            e.printStackTrace(); // Puede comentarse si se desea evitar el warning de lint
         }
     }
 }
