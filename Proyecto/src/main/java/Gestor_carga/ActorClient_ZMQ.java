@@ -86,12 +86,19 @@ public class ActorClient_ZMQ {
                 String nuevaFecha = parts.length > 5 ? parts[5] : null;
                 
                 // Procesar operación en el GA con failover automático
-                boolean ok = enviarOperacionGA(tipo, codigoLibro, usuarioId, nuevaFecha);
-                
-                System.out.println("Actor: operación " + tipo + " -> " + (ok ? "ÉXITO" : "FALLÓ"));
-                
-                // Reportar resultado al GC usando PUSH
-                String resultMsg = "RESULT|" + messageId + "|" + (ok ? "SUCCESS" : "FAILED") + "|" + tipo;
+                String resultadoGA = enviarOperacionGA(tipo, codigoLibro, usuarioId, nuevaFecha);
+                boolean ok = resultadoGA != null && resultadoGA.startsWith("OK");
+                String motivo = "";
+                if (!ok && resultadoGA != null) {
+                    if (resultadoGA.startsWith("FAILED|")) {
+                        motivo = resultadoGA.substring(7);
+                    } else {
+                        motivo = resultadoGA;
+                    }
+                }
+                System.out.println("Actor: operación " + tipo + " -> " + (ok ? "ÉXITO" : "FALLÓ") + (motivo.isEmpty() ? "" : (". Motivo: " + motivo)));
+                // Reportar resultado al GC usando PUSH, incluyendo motivo si hay error
+                String resultMsg = "RESULT|" + messageId + "|" + (ok ? "SUCCESS" : "FAILED") + "|" + tipo + (motivo.isEmpty() ? "" : ("|" + motivo));
                 resultPusher.send(resultMsg);
                 System.out.println("Actor reportó: " + resultMsg);
             }
@@ -105,56 +112,44 @@ public class ActorClient_ZMQ {
      * Envía operación al GA con failover automático
      * Intenta con GA primario, si falla intenta con backups
      */
-    private static boolean enviarOperacionGA(String tipo, String codigoLibro, String usuarioId, String nuevaFecha) {
+    private static String enviarOperacionGA(String tipo, String codigoLibro, String usuarioId, String nuevaFecha) {
         int intentos = 0;
         int maxIntentos = gaHosts.length * 2; // 2 intentos por cada GA
-        
         while (intentos < maxIntentos) {
             String gaHost = gaHosts[currentGaIndex];
             int gaPort = gaPorts[currentGaIndex];
-            
             try (Socket gaSocket = new Socket()) {
-                // Timeout de 2 segundos para conexión
                 gaSocket.connect(new InetSocketAddress(gaHost, gaPort), 2000);
-                gaSocket.setSoTimeout(3000); // Timeout de 3 segundos para lectura
-                
+                gaSocket.setSoTimeout(3000);
                 PrintWriter out = new PrintWriter(gaSocket.getOutputStream(), true);
                 BufferedReader in = new BufferedReader(new InputStreamReader(gaSocket.getInputStream()));
-                
                 String request;
                 if ("DEVOLUCION".equals(tipo)) {
                     request = "DEVOLUCION|" + codigoLibro + "|" + usuarioId;
                 } else { // RENOVACION
                     request = "RENOVACION|" + codigoLibro + "|" + usuarioId + "|" + nuevaFecha;
                 }
-                
                 out.println(request);
                 String response = in.readLine();
-                
-                if (response != null && response.startsWith("OK")) {
-                    return true;
+                if (response != null) {
+                    return response;
                 }
-                return false;
-                
+                return "FAILED|Sin respuesta del GA";
             } catch (Exception e) {
                 System.err.println("[FAILOVER] GA " + gaHost + ":" + gaPort + " no disponible: " + e.getMessage());
-                
-                // Cambiar al siguiente GA
                 currentGaIndex = (currentGaIndex + 1) % gaHosts.length;
                 intentos++;
-                
                 if (intentos < maxIntentos) {
                     System.out.println("[FAILOVER] Intentando con GA " + gaHosts[currentGaIndex] + ":" + gaPorts[currentGaIndex]);
                     try {
-                        Thread.sleep(500); // Pausa breve antes de reintentar
+                        Thread.sleep(500);
                     } catch (InterruptedException ie) {
                         Thread.currentThread().interrupt();
                     }
                 }
             }
         }
-        
         System.err.println("[FAILOVER] Todos los GAs no disponibles después de " + maxIntentos + " intentos");
-        return false;
+        return "FAILED|Todos los GAs no disponibles";
     }
 }
