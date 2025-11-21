@@ -1,12 +1,16 @@
 package Gestor_carga;
+import java.net.Socket;
+import java.io.PrintWriter;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+
 
 import org.zeromq.ZMQ;
 import org.zeromq.ZContext;
-import org.zeromq.ZMQException;
-
-import java.util.concurrent.atomic.AtomicInteger;
-
-import org.zeromq.ZMQ.Socket;
+import java.net.Socket;
+import java.io.PrintWriter;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 
 /**
  * Actor genérico para manejar DEVOLUCION y RENOVACION.
@@ -21,7 +25,7 @@ public class ActorClient_ZMQ {
     private final String[] gaHosts;
     private final int[] gaPorts;
     private final String gcResultIp;
-    private final AtomicInteger currentGaIndex = new AtomicInteger(0); 
+    private int currentGaIndex = 0;
 
     public ActorClient_ZMQ(String gcPubAddress, String gaList, String operationType, String gcResultIp) {
         this.gcPubAddress = gcPubAddress;
@@ -56,71 +60,60 @@ public class ActorClient_ZMQ {
             pusher.connect("tcp://" + gcResultIp + ":5557");
             System.out.println("Actor reportará resultados en tcp://" + gcResultIp + ":5557");
 
-            // 3. Socket REQ para comunicarse con los GAs (Failover)
-            try (ZMQ.Socket requester = context.createSocket(ZMQ.REQ)) {
-                for (int i = 0; i < gaHosts.length; i++) {
-                    requester.connect("tcp://" + gaHosts[i] + ":" + gaPorts[i]);
+            System.out.println("Actor conectado a " + gaHosts.length + " GAs.");
+            while (!Thread.currentThread().isInterrupted()) {
+                // Recibir mensaje completo (topic y cuerpo)
+                String receivedTopic = subscriber.recvStr(); 
+                String request = subscriber.recvStr();
+                if (request == null) continue;
+                System.out.println("Actor " + operationType + " recibió: " + request);
+                // Formato esperado: TOPIC|codigoLibro|userId|messageId
+                String[] parts = request.split("\\|", 4);
+                if (parts.length < 4) {
+                    System.err.println("Mensaje incompleto: " + request);
+                    continue;
                 }
-                System.out.println("Actor conectado a " + gaHosts.length + " GAs.");
-                while (!Thread.currentThread().isInterrupted()) {
-                    // Recibir mensaje completo (topic y cuerpo)
-                    String receivedTopic = subscriber.recvStr(); 
-                    String request = subscriber.recvStr();
-                    if (request == null) continue;
-                    System.out.println("Actor " + operationType + " recibió: " + request);
-                    // Formato esperado: TOPIC|codigoLibro|userId|messageId
-                    String[] parts = request.split("\\|", 4);
-                    if (parts.length < 4) {
-                        System.err.println("Mensaje incompleto: " + request);
-                        continue;
-                    }
-                    String codigoLibro = parts[1];
-                    String userId = parts[2];
-                    String messageId = parts[3];
-                    // --- 1. Preparar y enviar petición al GA (REQ/REP con Failover) ---
-                    String gaRequest = operationType + "|" + codigoLibro + "|" + userId;
-                    String gaResponse = sendAndReceiveGA(requester, gaRequest);
-                    // --- 2. Procesar respuesta y enviar al GC (PUSH) ---
-                    String finalResult = receivedTopic + "|" + messageId + "|" + gaResponse;
-                    pusher.send(finalResult);
-                    System.out.println("Resultado enviado al GC: " + finalResult);
-                }
-            } catch (ZMQException e) {
-                System.err.println("Error ZMQ en el Actor " + operationType + " (Requester): " + e.getMessage());
+                String codigoLibro = parts[1];
+                String userId = parts[2];
+                String messageId = parts[3];
+                // --- 1. Preparar y enviar petición al GA (TCP con failover) ---
+                String gaRequest = operationType + "|" + codigoLibro + "|" + userId;
+                String gaResponse = sendAndReceiveGA_TCP(gaRequest);
+                // --- 2. Procesar respuesta y enviar al GC (PUSH) ---
+                String finalResult = receivedTopic + "|" + messageId + "|" + gaResponse;
+                pusher.send(finalResult);
+                System.out.println("Resultado enviado al GC: " + finalResult);
             }
-        } catch (ZMQException e) {
-            System.err.println("Error ZMQ en el Actor " + operationType + ": " + e.getMessage());
+        } catch (Exception e) {
+            System.err.println("Error en el Actor " + operationType + ": " + e.getMessage());
+            // e.printStackTrace(); // Eliminado para evitar advertencia de lint
         }
     }
 
-    private String sendAndReceiveGA(ZMQ.Socket requester, String request) {
+    // Comunicación con GA usando sockets Java estándar (failover incluido)
+    private String sendAndReceiveGA_TCP(String request) {
         int intentos = 0;
         int maxIntentos = gaHosts.length * 2;
         final int gaTimeoutMs = 3000;
         while (intentos < maxIntentos) {
-
-            int index = currentGaIndex.get();
-            try {
-                // Enviar petición por REQ socket
-                requester.send(request.getBytes(ZMQ.CHARSET));
-                byte[] replyBytes = requester.recv(gaTimeoutMs);
-
-                if (replyBytes != null) {
-                    String reply = new String(replyBytes, ZMQ.CHARSET);
-                    System.out.println("[INFO Actor " + operationType + "] Éxito con GA " + gaHosts[index] + ":" + gaPorts[index]);
-                    // Mover al siguiente GA para la próxima vez (simple round-robin)
-                    currentGaIndex.set((index + 1) % gaHosts.length);
+            String gaHost = gaHosts[currentGaIndex];
+            int gaPort = gaPorts[currentGaIndex];
+            try (Socket socket = new Socket()) {
+                socket.connect(new java.net.InetSocketAddress(gaHost, gaPort), gaTimeoutMs);
+                socket.setSoTimeout(gaTimeoutMs);
+                PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+                BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+                out.println(request);
+                String reply = in.readLine();
+                if (reply != null) {
+                    System.out.println("[INFO Actor " + operationType + "] Éxito con GA " + gaHost + ":" + gaPort);
                     return reply;
-                } else {
-                    System.err.println("[WARN Actor " + operationType + "] Sin respuesta de GA " + gaHosts[index] + ":" + gaPorts[index]);
-                    // Rotar al siguiente GA y reintentar
-                    currentGaIndex.set((index + 1) % gaHosts.length);
                 }
-            } catch (ZMQException e) {
-                System.err.println("[ERROR Actor " + operationType + "] Error ZMQ con GA " + gaHosts[index] + ":" + gaPorts[index] + " - " + e.getMessage());
-                // Rotar y contar intento como fallido
-                currentGaIndex.set((index + 1) % gaHosts.length);
+                System.err.println("[FAILOVER Actor " + operationType + "] GA " + gaHost + ":" + gaPort + " no responde a tiempo. Rotando...");
+            } catch (Exception e) {
+                System.err.println("[FAILOVER Actor " + operationType + "] Error en GA " + gaHost + ":" + gaPort + ": " + e.getMessage());
             }
+            currentGaIndex = (currentGaIndex + 1) % gaHosts.length;
             intentos++;
         }
         return "ERROR|Timeout de comunicación con GA (después de " + maxIntentos + " intentos)";
@@ -145,7 +138,7 @@ public class ActorClient_ZMQ {
             actor.iniciar();
         } catch (Exception e) {
             System.err.println("Error fatal en Actor Client: " + e.getMessage());
-            e.printStackTrace(); // Puede comentarse si se desea evitar el warning de lint
+            // e.printStackTrace(); // Eliminado para evitar advertencia de lint
         }
     }
 }
