@@ -211,25 +211,28 @@ public class ClienteInteractivo_ZMQ {
     // Mapea motivos de error a mensajes personalizados
     private static String mapErrorMessage(String motivo) {
         motivo = motivo.trim();
-        switch (motivo) {
-            case "No disponible":
-                return "No hay ejemplares disponibles para préstamo.";
-            case "No prestado":
-                return "El libro no está prestado, no se puede devolver.";
-            case "Máximo renovaciones alcanzado":
-                return "Ya no se puede renovar este libro (límite alcanzado).";
-            case "No se puede renovar":
-                return "No se puede renovar el libro en este momento.";
-            case "Usuario incorrecto":
-                return "No puedes devolver/renovar un libro que no tienes prestado.";
-            case "Código inválido":
-                return "El código de libro ingresado no existe.";
-            case "Todos los GAs no disponibles":
-                return "No hay servidores de almacenamiento disponibles. Intente más tarde.";
-            case "Sin respuesta del GA":
-                return "No se obtuvo respuesta del servidor de almacenamiento.";
-            default:
-                return motivo;
-        }
+            switch (motivo) {
+                case "No disponible":
+                case "No hay ejemplares":
+                case "No hay ejemplares disponibles":
+                case "No hay ejemplares disponibles para préstamo.":
+                    return "Fallo: no hay ejemplares disponibles para préstamo.";
+                case "No prestado":
+                    return "El libro no está prestado, no se puede devolver.";
+                case "Máximo renovaciones alcanzado":
+                    return "Ya no se puede renovar este libro (límite alcanzado).";
+                case "No se puede renovar":
+                    return "No se puede renovar el libro en este momento.";
+                case "Usuario incorrecto":
+                    return "No puedes devolver/renovar un libro que no tienes prestado.";
+                case "Código inválido":
+                    return "El código de libro ingresado no existe.";
+                case "Todos los GAs no disponibles":
+                    return "No hay servidores de almacenamiento disponibles. Intente más tarde.";
+                case "Sin respuesta del GA":
+                    return "No se obtuvo respuesta del servidor de almacenamiento.";
+                default:
+                    return motivo;
+            }
     }
 }
