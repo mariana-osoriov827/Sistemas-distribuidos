@@ -77,7 +77,7 @@ public class ServidorGC_ZMQ {
             // se comunica directamente con el GA usando patrón REQ/REP
             
             // Pequeña pausa para que los suscriptores se conecten
-            Thread.sleep(1000);
+            Thread.sleep(2000);
             
             // Poller para manejar múltiples sockets
             ZMQ.Poller poller = context.createPoller(2);
@@ -152,7 +152,7 @@ public class ServidorGC_ZMQ {
                             String status = "PENDING";
                             String actorResult = null;
                             long startWait = System.currentTimeMillis();
-                            long timeout = 5000; // 5 segundos máximo
+                            long timeout = 10000; // 10 segundos máximo
                             while (System.currentTimeMillis() - startWait < timeout) {
                                 if (messageStatus.containsKey(id)) {
                                     actorResult = messageStatus.get(id); // full result string

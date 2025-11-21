@@ -39,7 +39,7 @@ public class ActorPrestamo_ZMQ {
             subscriber.subscribe("PRESTAMO".getBytes());
             System.out.println("ActorPrestamo suscrito a tópico PRESTAMO en " + gcHost + ":" + gcPubPort);
             System.out.println("ActorPrestamo conectado al GA en " + gaHost + ":" + gaPort);
-            try { Thread.sleep(1000); } catch (InterruptedException ie) { }
+            try { Thread.sleep(2000); } catch (InterruptedException ie) { }
 
             // Socket PUSH para reportar resultados al GC (puerto PUB + 2 = REP + 1)
             int resultPort = gcPubPort + 2;
