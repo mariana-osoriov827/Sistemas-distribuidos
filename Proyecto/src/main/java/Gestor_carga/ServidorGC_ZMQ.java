@@ -143,18 +143,31 @@ public class ServidorGC_ZMQ {
                             // y esperar respuesta mediante un canal de vuelta
                             String id = UUID.randomUUID().toString();
                             String fecha = LocalDate.now().format(fmt);
-                            
                             // Publicar solicitud de préstamo
                             String mensaje = String.format("%s|%s|%s|%s|%s|%s", 
                                 tipo, id, codigoLibro, usuarioId, fecha, "null");
                             publisher.send(mensaje);
                             System.out.println("GC publicó PRESTAMO: " + mensaje);
-                            
-                            // El Actor de Préstamo procesará esto de forma síncrona con el GA
-                            // Por ahora, respondemos que se está procesando
-                            // En una implementación completa, necesitaríamos un canal de respuesta
-                            replier.send("OK|Préstamo en proceso|" + id);
-                            System.out.println("GC respondió préstamo: en proceso");
+                            // Esperar respuesta del actor de préstamo (por PULL)
+                            String status = "PENDING";
+                            String actorResult = null;
+                            long startWait = System.currentTimeMillis();
+                            long timeout = 5000; // 5 segundos máximo
+                            while (System.currentTimeMillis() - startWait < timeout) {
+                                if (messageStatus.containsKey(id)) {
+                                    status = messageStatus.get(id);
+                                    actorResult = status;
+                                    break;
+                                }
+                                try { Thread.sleep(50); } catch (InterruptedException e) { break; }
+                            }
+                            if (actorResult != null && !"PENDING".equals(actorResult)) {
+                                replier.send("OK|" + actorResult + "|" + id);
+                                System.out.println("GC respondió préstamo: " + actorResult);
+                            } else {
+                                replier.send("ERROR|Timeout esperando respuesta del actor|" + id);
+                                System.out.println("GC respondió préstamo: Timeout esperando actor");
+                            }
                             
                         } else if ("DEVOLUCION".equals(tipo) || "RENOVACION".equals(tipo)) {
                             // DEVOLUCION/RENOVACION: Validar que el libro esté prestado ANTES de aceptar
