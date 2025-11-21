@@ -77,8 +77,8 @@ public class ServidorGA_TCP {
     }
     
     private void manejarCliente(Socket socket) {
-        try (BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-             PrintWriter out = new PrintWriter(socket.getOutputStream(), true)) {
+           try (BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream(), java.nio.charset.StandardCharsets.UTF_8));
+               PrintWriter out = new PrintWriter(new OutputStreamWriter(socket.getOutputStream(), java.nio.charset.StandardCharsets.UTF_8), true)) {
             
             String request = in.readLine();
             if (request == null) return;
