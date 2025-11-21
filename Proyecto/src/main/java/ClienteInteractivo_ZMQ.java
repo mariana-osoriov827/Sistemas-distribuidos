@@ -68,15 +68,18 @@ public class ClienteInteractivo_ZMQ {
                 String infoRequest = "INFO|" + codigoLibro;
                 requester.send(infoRequest);
                 String infoResponse = requester.recvStr();
-                if (infoResponse.startsWith("ERROR") || infoResponse.contains("FAILED|Libro no encontrado")) {
+                
+                if (infoResponse.startsWith("ERROR")) {
                     System.out.println("\n[ERROR] " + infoResponse);
                     continue;
                 }
+                
                 // Mostrar información del libro
                 System.out.println("\n" + infoResponse);
                 System.out.print("¿Desea continuar con esta operación? (s/n): ");
-                String confirmarOperacion = scanner.nextLine().trim().toLowerCase();
-                if (!confirmarOperacion.equals("s") && !confirmarOperacion.equals("si")) {
+                String confirmacion = scanner.nextLine().trim().toLowerCase();
+                
+                if (!confirmacion.equals("s") && !confirmacion.equals("si")) {
                     System.out.println("Operación cancelada.");
                     // Consumir respuesta pendiente
                     requester.send("CANCEL");
@@ -106,61 +109,53 @@ public class ClienteInteractivo_ZMQ {
                 
                 requester.send(operacion);
                 String response = requester.recvStr();
-                // Si la respuesta es de error por timeout del actor, intentar polling STATUS
-                if (response.startsWith("ERROR|No se recibió respuesta del actor|")) {
-                    // Extraer el messageId de la respuesta de error
-                    String[] errParts = response.split("\\|", 3);
-                    String messageId = errParts.length >= 3 ? errParts[2] : null;
-                    if (messageId != null) {
-                        System.out.println("\n[INFO] No se recibió respuesta inmediata del actor. Consultando estado...");
-                        // Polling STATUS hasta obtener respuesta real o agotar reintentos (hasta 10s)
-                        String status = "PENDING";
-                        int intentos = 0;
-                        int maxIntentos = 20; // 20*500ms = 10s
-                        while ("PENDING".equals(status) && intentos < maxIntentos) {
-                            try { Thread.sleep(500); } catch (InterruptedException e) { break; }
-                            requester.send("STATUS|" + messageId);
-                            String statusResp = requester.recvStr();
-                            if (statusResp.startsWith("STATUS|")) {
-                                status = statusResp.substring(7);
-                            } else {
-                                break;
-                            }
-                            intentos++;
-                        }
-                        if (!"PENDING".equals(status)) {
-                            System.out.println("\n" + formatResponse(status));
-                        } else {
-                            System.out.println("\n[ERROR] No se obtuvo respuesta del actor tras varios intentos.");
-                        }
-                    } else {
-                        System.out.println("\n" + formatResponse(response));
-                    }
-                } else {
+                
+                // Si hay error, mostrarlo y no continuar
+                if (response.startsWith("ERROR")) {
                     System.out.println("\n" + formatResponse(response));
+                    continue;
+                }
+                
+                System.out.println("\n" + formatResponse(response));
+                
+                // Si es operación asíncrona (DEVOLUCION o RENOVACION), esperar y consultar estado
+                if ((opcion.equals("2") || opcion.equals("3")) && response.contains("Aceptado|")) {
+                    String[] responseParts = response.split("\\|");
+                    if (responseParts.length >= 3) {
+                        String messageId = responseParts[2];
+                        System.out.println("\nEsperando resultado de la operación...");
+                        
+                        // Esperar 2 segundos para que el actor procese
+                        Thread.sleep(2000);
+                        
+                        // Consultar estado
+                        requester.send("STATUS|" + messageId);
+                        String statusResponse = requester.recvStr();
+                        
+                        if (statusResponse.startsWith("STATUS|")) {
+                            String status = statusResponse.substring(7);
+                            if ("SUCCESS".equals(status)) {
+                                System.out.println("[ÉXITO] La operación se completó exitosamente");
+                            } else if ("FAILED".equals(status)) {
+                                System.out.println("[FALLÓ] La operación no se pudo completar");
+                            } else {
+                                System.out.println("[INFO] Estado: " + status);
+                            }
+                        }
+                    }
                 }
             }
+            
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
     
     private static String formatResponse(String response) {
-        if (response == null || response.trim().isEmpty()) {
-            return "[ERROR] Respuesta vacía del servidor";
-        } else if (response.startsWith("OK|")) {
-            // Si la respuesta tiene más de un campo, solo mostrar el mensaje principal
-            String[] parts = response.split("\\|", 3);
-            if (parts.length >= 2) {
-                // Si hay un tercer campo (como UUID), lo ignoramos
-                return "[OK] " + parts[1];
-            } else {
-                return "[OK] " + response.substring(3);
-            }
+        if (response.startsWith("OK")) {
+            return "[OK] " + response.substring(3);
         } else if (response.startsWith("ERROR") || response.startsWith("FAILED")) {
-            return "[ERROR] " + response.replaceFirst("(ERROR|FAILED)\\|", "");
-        } else if (response.startsWith("INFO|")) {
-            return "[INFO] " + response.substring(5);
+            return "[ERROR] " + response;
         } else {
             return "[INFO] " + response;
         }

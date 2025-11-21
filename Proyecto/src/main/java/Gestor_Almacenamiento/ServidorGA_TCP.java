@@ -77,8 +77,8 @@ public class ServidorGA_TCP {
     }
     
     private void manejarCliente(Socket socket) {
-           try (BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream(), java.nio.charset.StandardCharsets.UTF_8));
-               PrintWriter out = new PrintWriter(new OutputStreamWriter(socket.getOutputStream(), java.nio.charset.StandardCharsets.UTF_8), true)) {
+        try (BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+             PrintWriter out = new PrintWriter(socket.getOutputStream(), true)) {
             
             String request = in.readLine();
             if (request == null) return;
@@ -96,79 +96,43 @@ public class ServidorGA_TCP {
             String codigoLibro = parts[1];
             String usuarioId = parts.length > 2 ? parts[2] : "system";
             
+            boolean resultado = false;
             String respuesta;
+            
             switch (tipo.toUpperCase()) {
-                case "INFO": {
+                case "INFO":
                     String nombreLibro = bd.obtenerNombreLibro(codigoLibro);
                     respuesta = nombreLibro != null ? "OK|" + nombreLibro : "FAILED|Libro no encontrado";
                     break;
-                }
-                case "VALIDAR_PRESTAMO": {
-                    if (parts.length == 3) {
-                        // Validar si el usuario específico tiene el libro
-                        boolean tienePrestamo = bd.usuarioYaTienePrestamo(codigoLibro, usuarioId);
-                        respuesta = "OK|" + tienePrestamo;
-                    } else {
-                        // Validar si alguien tiene el libro prestado
-                        boolean tienePrestamo = bd.tienePrestamo(codigoLibro);
-                        respuesta = "OK|" + tienePrestamo;
-                    }
+                
+                case "VALIDAR_PRESTAMO":
+                    boolean tienePrestamo = bd.tienePrestamo(codigoLibro);
+                    respuesta = "OK|" + tienePrestamo;
                     break;
-                }
-                case "PRESTAMO": {
-                    if (bd.obtenerNombreLibro(codigoLibro) == null) {
-                        respuesta = "FAILED|El libro no existe";
-                        break;
-                    }
-                    if (bd.getCantidadDisponibles(codigoLibro) == 0) {
-                        respuesta = "FAILED|No puede prestar este libro porque no está disponible";
-                        break;
-                    }
-                    if (bd.usuarioYaTienePrestamo(codigoLibro, usuarioId)) {
-                        respuesta = "FAILED|Ya tienes este libro prestado";
-                        break;
-                    }
-                    boolean resultado = bd.prestarEjemplar(codigoLibro, usuarioId);
-                    respuesta = resultado ? "OK|Préstamo otorgado" : "FAILED|No puede prestar este libro porque no está disponible";
+                    
+                case "PRESTAMO":
+                    resultado = bd.prestarEjemplar(codigoLibro);
+                    respuesta = resultado ? "OK|Préstamo otorgado" : "FAILED|No disponible";
                     if (resultado) encolarReplicacion("PRESTAMO", codigoLibro, usuarioId, null);
                     break;
-                }
-                case "DEVOLUCION": {
-                    if (bd.obtenerNombreLibro(codigoLibro) == null) {
-                        respuesta = "FAILED|El libro no existe";
-                        break;
-                    }
-                    if (!bd.usuarioTienePrestado(codigoLibro, usuarioId)) {
-                        respuesta = "FAILED|No tiene el libro prestado";
-                        break;
-                    }
-                    boolean resultado = bd.devolverEjemplar(codigoLibro);
+                    
+                case "DEVOLUCION":
+                    resultado = bd.devolverEjemplar(codigoLibro);
                     respuesta = resultado ? "OK|Devolución registrada" : "FAILED|Error en devolución";
                     if (resultado) encolarReplicacion("DEVOLUCION", codigoLibro, usuarioId, null);
                     break;
-                }
-                case "RENOVACION": {
-                    if (bd.obtenerNombreLibro(codigoLibro) == null) {
-                        respuesta = "FAILED|El libro no existe";
-                        break;
-                    }
-                    if (!bd.usuarioTienePrestado(codigoLibro, usuarioId)) {
-                        respuesta = "FAILED|No tiene el libro prestado";
-                        break;
-                    }
-                    if (bd.usuarioRenovaciones(codigoLibro, usuarioId) >= 2) {
-                        respuesta = "FAILED|No se puede pedir prestado más de 2 veces";
-                        break;
-                    }
+                    
+                case "RENOVACION":
                     String nuevaFecha = parts.length > 3 ? parts[3] : null;
-                    boolean resultado = bd.renovarPrestamo(codigoLibro, usuarioId, nuevaFecha);
-                    respuesta = resultado ? "OK|Renovación exitosa" : "FAILED|No se puede pedir prestado más de 2 veces";
+                    resultado = bd.renovarPrestamo(codigoLibro, usuarioId, nuevaFecha);
+                    respuesta = resultado ? "OK|Renovación exitosa" : "FAILED|Máximo renovaciones alcanzado";
                     if (resultado) encolarReplicacion("RENOVACION", codigoLibro, usuarioId, nuevaFecha);
                     break;
-                }
+                    
                 default:
                     respuesta = "ERROR|Operación desconocida";
             }
+            
             out.println(respuesta);
             System.out.println("GA respondió: " + respuesta);
             

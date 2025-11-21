@@ -20,18 +20,27 @@ import java.rmi.registry.Registry;
 public class ServidorGC {
     public static void main(String[] args) {
         try {
+          
             BibliotecaGCImpl impl = new BibliotecaGCImpl();
+
+            // Crear o reutilizar el registro RMI en el puerto 3000
             try {
                 LocateRegistry.createRegistry(3000);
+                System.out.println("RMI registry creado en 3000");
             } catch (Exception ex) {
-                // Silenciado: no mostrar mensaje de RMI registry
+                System.out.println("RMI registry posiblemente ya existía: " + ex.getMessage());
             }
+
+            // Registrar el servicio remoto bajo el nombre "BibliotecaGCService"
             Registry registry = LocateRegistry.getRegistry(3000);
             registry.rebind("BibliotecaGCService", impl);
             System.out.println("BibliotecaGCService listo.");
-            // Solo mensaje de inicio exitoso
+
+            // El servidor queda activo escuchando solicitudes de clientes y actores
+            System.out.println("ServidorGC corriendo. Pulse Ctrl+C para terminar.");
+
         } catch (Exception e) {
-            // Silenciado
+            e.printStackTrace();
         }
     }
 }

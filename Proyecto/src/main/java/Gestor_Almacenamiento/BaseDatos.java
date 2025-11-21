@@ -19,33 +19,6 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class BaseDatos {
-    // Devuelve la cantidad de ejemplares disponibles para un libro
-    public int getCantidadDisponibles(String codigo) {
-        Libro l = libros.get(codigo);
-        if (l == null) return 0;
-        return (int) l.getEjemplares().stream().filter(e -> e.getEstado() == 'D').count();
-    }
-
-    // Devuelve true si el usuario ya tiene prestado un ejemplar de ese libro
-    public boolean usuarioYaTienePrestamo(String codigo, String usuarioId) {
-        Libro l = libros.get(codigo);
-        if (l == null) return false;
-        return l.getEjemplares().stream().anyMatch(e -> e.getEstado() == 'P' && usuarioId != null && usuarioId.equals(e.getUsuarioActual()));
-    }
-
-    // Devuelve true si el usuario tiene prestado un ejemplar de ese libro
-    public boolean usuarioTienePrestado(String codigo, String usuarioId) {
-        return usuarioYaTienePrestamo(codigo, usuarioId);
-    }
-
-    // Devuelve el número de renovaciones que lleva el usuario para ese libro
-    public int usuarioRenovaciones(String codigo, String usuarioId) {
-        Libro l = libros.get(codigo);
-        if (l == null) return 0;
-        return l.getEjemplares().stream()
-            .filter(e -> e.getEstado() == 'P' && usuarioId != null && usuarioId.equals(e.getUsuarioActual()))
-            .mapToInt(e -> e.getContadorRenovaciones()).max().orElse(0);
-    }
 
     // Aquí guardamos todos los libros, usando un mapa para buscarlos rápido por código
     private final Map<String, Libro> libros = new ConcurrentHashMap<>();
@@ -57,35 +30,38 @@ public class BaseDatos {
     // Si la línea comienza con texto, significa que es la cabecera de un libro
     public void cargarDesdeArchivo(String ruta) throws IOException {
         libros.clear();
-        try (BufferedReader br = new BufferedReader(new FileReader(ruta))) {
-            String linea;
-            Libro libroActual = null;
-            while ((linea = br.readLine()) != null) {
-                if (linea.trim().isEmpty()) continue;
-                String[] partes = linea.split(",");
-                String first = partes[0].trim();
-                // Si la línea empieza con un número, se asume que describe un ejemplar
-                if (Character.isDigit(first.charAt(0))) {
-                    if (libroActual != null && partes.length >= 3) {
-                        int id = Integer.parseInt(partes[0].trim());
-                        char estado = partes[1].trim().charAt(0);
-                        String fecha = partes[2].trim();
-                        libroActual.addEjemplar(new Ejemplar(id, estado, fecha));
-                    }
-                } else {
-                    // Si la línea no empieza con número, es la cabecera de un libro
-                    if (partes.length >= 3) {
-                        String titulo = partes[0].trim();
-                        String codigo = partes[1].trim();
-                        int ejemplares = Integer.parseInt(partes[2].trim());
-                        libroActual = new Libro(codigo, titulo, 0);
-                        libros.put(codigo, libroActual);
-                        // Guardamos cuántos ejemplares debería tener este libro
-                        libroActual.setCantidadEsperada(ejemplares);
-                    }
+        BufferedReader br = new BufferedReader(new FileReader(ruta));
+        String linea;
+        Libro libroActual = null;
+
+        while ((linea = br.readLine()) != null) {
+            if (linea.trim().isEmpty()) continue;
+            String[] partes = linea.split(",");
+            String first = partes[0].trim();
+
+            // Si la línea empieza con un número, se asume que describe un ejemplar
+            if (Character.isDigit(first.charAt(0))) {
+                if (libroActual != null && partes.length >= 3) {
+                    int id = Integer.parseInt(partes[0].trim());
+                    char estado = partes[1].trim().charAt(0);
+                    String fecha = partes[2].trim();
+                    libroActual.addEjemplar(new Ejemplar(id, estado, fecha));
+                }
+            } else {
+                // Si la línea no empieza con número, es la cabecera de un libro
+                if (partes.length >= 3) {
+                    String titulo = partes[0].trim();
+                    String codigo = partes[1].trim();
+                    int ejemplares = Integer.parseInt(partes[2].trim());
+                    libroActual = new Libro(codigo, titulo, 0);
+                    libros.put(codigo, libroActual);
+
+                    // Guardamos cuántos ejemplares debería tener este libro
+                    libroActual.setCantidadEsperada(ejemplares);
                 }
             }
         }
+        br.close();
 
         // Si un libro no tenía ejemplares listados en el archivo,
         // aquí creamos los ejemplares en estado disponible
@@ -103,16 +79,16 @@ public class BaseDatos {
     // Este método guarda el estado actual de los libros en el archivo
     // Escribe primero la cabecera de cada libro, luego sus ejemplares
     public void guardarEnArchivo(String ruta) throws IOException {
-        try (BufferedWriter bw = new BufferedWriter(new FileWriter(ruta))) {
-            for (Libro libro : libros.values()) {
-                bw.write(libro.getNombre() + ", " + libro.getCodigo() + ", " + libro.getEjemplares().size());
+        BufferedWriter bw = new BufferedWriter(new FileWriter(ruta));
+        for (Libro libro : libros.values()) {
+            bw.write(libro.getNombre() + ", " + libro.getCodigo() + ", " + libro.getEjemplares().size());
+            bw.newLine();
+            for (Ejemplar ej : libro.getEjemplares()) {
+                bw.write(ej.getId() + ", " + ej.getEstado() + ", " + ej.getFecha());
                 bw.newLine();
-                for (Ejemplar ej : libro.getEjemplares()) {
-                    bw.write(ej.getId() + ", " + ej.getEstado() + ", " + ej.getFecha());
-                    bw.newLine();
-                }
             }
         }
+        bw.close();
         System.out.println("BaseDatos guardada en archivo: " + ruta);
     }
 
@@ -134,16 +110,16 @@ public class BaseDatos {
         Libro l = libros.get(codigo);
         if (l == null) return false;
         synchronized (l) {
-            return l.renovar(usuarioId);
+            return l.renovar();
         }
     }
 
     // Prestar un ejemplar disponible
-    public boolean prestarEjemplar(String codigo, String usuarioId) {
+    public boolean prestarEjemplar(String codigo) {
         Libro l = libros.get(codigo);
         if (l == null) return false;
         synchronized (l) {
-            return l.prestar(usuarioId);
+            return l.prestar();
         }
     }
 

@@ -26,18 +26,29 @@ public class ServidorGA {
         String archivoBD = "libros.txt";
 
         try {
+            
             BaseDatos bd = new BaseDatos();
+
+            // Intenta cargar los datos iniciales desde el archivo 'libros.txt'.
             try {
                 bd.cargarDesdeArchivo(archivoBD);
             } catch (Exception e) {
-                // Silenciado: no mostrar mensaje de error de carga
+                System.out.println("No se pudo cargar " + archivoBD + ", iniciando BD vacía.");
             }
+
+            // Se crea el objeto remoto (GestorAlmacenamientoImpl).
             GestorAlmacenamientoImpl impl = new GestorAlmacenamientoImpl(bd, role);
+
+            // Se intenta crear el registro RMI en el puerto 1099.
             try {
                 LocateRegistry.createRegistry(1099);
+                System.out.println("RMI registry creado en 1099");
             } catch (Exception ex) {
-                // Silenciado: no mostrar mensaje de RMI registry
+                System.out.println("RMI registry posiblemente ya existía: " + ex.getMessage());
             }
+
+            // Se obtiene el registro RMI y se asocia (rebind) el servicio con un nombre
+            // distinto según el rol del GA, para que los actores puedan ubicarlo.
             Registry registry = LocateRegistry.getRegistry(1099);
             if ("primary".equalsIgnoreCase(role)) {
                 registry.rebind("GestorAlmacenamientoPrimary", impl);
@@ -46,16 +57,22 @@ public class ServidorGA {
                 registry.rebind("GestorAlmacenamientoReplica", impl);
                 System.out.println("GestorAlmacenamientoReplica listo.");
             }
+
+            // Se agrega un “shutdown hook” que guarda automáticamente la base de datos
+            // cuando el servidor se apaga.
             Runtime.getRuntime().addShutdownHook(new Thread(() -> {
                 try {
                     bd.guardarEnArchivo(archivoBD);
+                    System.out.println("BD guardada en " + archivoBD);
                 } catch (Exception e) {
-                    // Silenciado
+                    e.printStackTrace();
                 }
             }));
-            // Solo mensaje de inicio exitoso
+
+            System.out.println("ServidorGA corriendo. role=" + role);
+
         } catch (Exception e) {
-            // Silenciado
+            e.printStackTrace();
         }
     }
 }
