@@ -84,19 +84,19 @@ check_component "Gestor de Carga (GC)" $GC_PID "$GC_LOG"
 # Actores
 echo "[3/5] Iniciando Actor Devolución..."
 DEV_LOG=$(mktemp)
-java -cp "$CP" Gestor_carga.ActorClient_ZMQ localhost:${PUB_PORT} $GA_LIST DEVOLUCION $GA_HOST > "$DEV_LOG" 2>&1 &
+java -cp "$CP" Gestor_carga.ActorClient_ZMQ localhost:${PUB_PORT} $GA_LIST DEVOLUCION > "$DEV_LOG" 2>&1 &
 DEV_PID=$!
 check_component "Actor Devolución" $DEV_PID "$DEV_LOG"
 
 echo "[4/5] Iniciando Actor Renovación..."
 REN_LOG=$(mktemp)
-java -cp "$CP" Gestor_carga.ActorClient_ZMQ localhost:${PUB_PORT} $GA_LIST RENOVACION $GA_HOST > "$REN_LOG" 2>&1 &
+java -cp "$CP" Gestor_carga.ActorClient_ZMQ localhost:${PUB_PORT} $GA_LIST RENOVACION > "$REN_LOG" 2>&1 &
 REN_PID=$!
 check_component "Actor Renovación" $REN_PID "$REN_LOG"
 
 echo "[5/5] Iniciando Actor Préstamo..."
 PRES_LOG=$(mktemp)
-java -cp "$CP" Gestor_carga.ActorPrestamo_ZMQ localhost:${PUB_PORT} $GA_LIST $GA_HOST > "$PRES_LOG" 2>&1 &
+java -cp "$CP" Gestor_carga.ActorPrestamo_ZMQ localhost:${PUB_PORT} localhost:${GA_PORT} > "$PRES_LOG" 2>&1 &
 PRES_PID=$!
 check_component "Actor Préstamo" $PRES_PID "$PRES_LOG"
 
