@@ -281,7 +281,7 @@ public class ServidorGC_ZMQ {
         if (args.length < 4) {
             System.out.println("Uso: java ServidorGC_ZMQ <sede> <pubPort> <repPort> <gaHost1:port1[,gaHost2:port2]>");
             System.out.println("Ejemplo Sede 1: java ServidorGC_ZMQ 1 5555 5556 localhost:5560,10.43.102.177:6560");
-            System.out.println("Ejemplo Sede 2: java ServidorGC_ZMQ 2 6555 6556 localhost:6560,10.43.103.49:5560");
+            System.out.println("Ejemplo Sede 2: java ServidorGC_ZMQ 2 5555 5556 localhost:6560,10.43.103.49:5560");
             System.exit(1);
         }
         

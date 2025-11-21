@@ -10,8 +10,8 @@ echo "======================================"
 
 # Configuración de puertos Sede 2
 SEDE=2
-PUB_PORT=6555
-REP_PORT=6556
+PUB_PORT=5555
+REP_PORT=5556
 GA_PORT=6560
 GA_HOST="localhost"
 
