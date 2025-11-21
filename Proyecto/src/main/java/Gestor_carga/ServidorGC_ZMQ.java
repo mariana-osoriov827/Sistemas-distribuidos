@@ -30,7 +30,30 @@ public class ServidorGC_ZMQ {
 
     // Mapas para seguimiento de mensajes asíncronos (Devolución/Renovación)
     private final Map<String, String> messageStatus = new ConcurrentHashMap<String, String>();
-    
+    public static void main(String[] args) {
+        // Debe haber exactamente 4 argumentos: sede, pubPort, repPort, gaList
+        if (args.length != 4) {
+            System.err.println("Uso: ServidorGC_ZMQ <sede> <pubPort> <repPort> <gaList>");
+            System.exit(1);
+        }
+        
+        try {
+            int sede = Integer.parseInt(args[0]);
+            String pubPort = args[1];
+            String repPort = args[2];
+            String gaList = args[3];
+            
+            ServidorGC_ZMQ gc = new ServidorGC_ZMQ(sede, pubPort, repPort, gaList);
+            gc.iniciar(); // Llamar al método que contiene la lógica ZMQ
+            
+        } catch (NumberFormatException e) {
+            System.err.println("Error: La sede debe ser un número entero.");
+            System.exit(1);
+        } catch (Exception e) {
+            System.err.println("Error al iniciar el Gestor de Carga: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
     public ServidorGC_ZMQ(int sede, String pubPort, String repPort, String gaAddress) {
         this.sede = sede;
         this.pubPort = pubPort;
