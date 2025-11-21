@@ -19,7 +19,7 @@ if [ $# -lt 1 ]; then
 fi
 
 SEDE_IP=$1
-REP_PORT=${2:-6556}
+REP_PORT=${2:-5556}
 ARCHIVO=${3:-""}
 
 CP="target/classes:$HOME/.m2/repository/org/zeromq/jeromq/0.6.0/jeromq-0.6.0.jar"
