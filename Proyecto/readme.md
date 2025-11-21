@@ -5,7 +5,12 @@ Autores: Gabriel Jaramillo Cuberos, Roberth Méndez Rivera, Mariana Osorio Vásq
 ## 🧩 Descripción general
 Este proyecto implementa un sistema distribuido para la gestión de préstamos, devoluciones y renovaciones de libros en la biblioteca Ada Lovelace, que cuenta con múltiples sedes.
 La arquitectura se basa en ZeroMQ (JeroMQ para Java) y usa los patrones REQ/REP y PUB/SUB para permitir comunicación entre los componentes.
-
+Para ver la ejecución del proyecto con los siguientes items:
+a. Distribución de componentes en máquinas.
+b. Librerías y patrones usados
+c. Tratamiento de la falla del GA/BD.
+d. Generación de carga
+Ingrese al siguiente enlace: https://www.youtube.com/watch?v=rhdvkc44RGs
 ### Operaciones Implementadas
 
 #### 1. PRÉSTAMO (Síncrono)
