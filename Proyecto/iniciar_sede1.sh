@@ -96,7 +96,7 @@ check_component "Actor Renovación" $REN_PID "$REN_LOG"
 
 echo "[5/5] Iniciando Actor Préstamo..."
 PRES_LOG=$(mktemp)
-java -cp "$CP" Gestor_carga.ActorPrestamo_ZMQ localhost:${PUB_PORT} localhost:${GA_PORT} > "$PRES_LOG" 2>&1 &
+java -cp "$CP" Gestor_carga.ActorPrestamo_ZMQ localhost:${PUB_PORT} $GA_LIST $GA_HOST > "$PRES_LOG" 2>&1 &
 PRES_PID=$!
 check_component "Actor Préstamo" $PRES_PID "$PRES_LOG"
 
