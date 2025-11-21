@@ -71,6 +71,8 @@ public class ClienteInteractivo_ZMQ {
                 
                 if (infoResponse.startsWith("ERROR")) {
                     System.out.println("\n[ERROR] " + infoResponse);
+                    // Consumir respuesta pendiente si el GC envía algo más (defensivo)
+                    try { requester.recvStr(ZMQ.DONTWAIT); } catch (Exception ex) {}
                     continue;
                 }
                 
@@ -81,9 +83,9 @@ public class ClienteInteractivo_ZMQ {
                 
                 if (!confirmacion.equals("s") && !confirmacion.equals("si")) {
                     System.out.println("Operación cancelada.");
-                    // Consumir respuesta pendiente
+                    // Consumir respuesta pendiente correctamente
                     requester.send("CANCEL");
-                    requester.recvStr();
+                    try { requester.recvStr(); } catch (Exception ex) {}
                     continue;
                 }
                 
