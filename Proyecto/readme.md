@@ -286,6 +286,7 @@ graph LR
 
   subgraph Sede_1
     GC1[Gestor de Carga]
+    A1P[Actor Préstamo]
     A1R[Actor Renovación]
     A1D[Actor Devolución]
     GA1[Gestor de Almacenamiento]
@@ -293,6 +294,7 @@ graph LR
 
   subgraph Sede_2
     GC2[Gestor de Carga]
+    A2P[Actor Préstamo]
     A2R[Actor Renovación]
     A2D[Actor Devolución]
     GA2[Gestor de Almacenamiento]
@@ -300,12 +302,16 @@ graph LR
 
   PS --> GC1
   PS --> GC2
+  GC1 --> A1P
   GC1 --> A1R
   GC1 --> A1D
+  A1P --> GA1
   A1R --> GA1
   A1D --> GA1
+  GC2 --> A2P
   GC2 --> A2R
   GC2 --> A2D
+  A2P --> GA2
   A2R --> GA2
   A2D --> GA2
   GA1 <-. Sincronización .-> GA2
