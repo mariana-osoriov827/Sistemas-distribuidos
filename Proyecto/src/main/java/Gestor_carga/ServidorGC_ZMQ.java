@@ -77,7 +77,8 @@ public class ServidorGC_ZMQ {
             // se comunica directamente con el GA usando patrón REQ/REP
             
             // Pequeña pausa para que los suscriptores se conecten
-            Thread.sleep(2000);
+            System.out.println("[DEBUG] Esperando 3s para garantizar conexión PUB/SUB...");
+            Thread.sleep(3000);
             
             // Poller para manejar múltiples sockets
             ZMQ.Poller poller = context.createPoller(2);
