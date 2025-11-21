@@ -50,12 +50,16 @@ public class ActorPrestamo_ZMQ {
             while (!Thread.currentThread().isInterrupted()) {
                 // Recibir mensaje del GC
                 String mensaje = subscriber.recvStr();
-                System.out.println(java.time.LocalDateTime.now() + " - ActorPrestamo recibió: " + mensaje);
+                if (mensaje == null) {
+                    System.err.println("[DEBUG] No se recibió ningún mensaje (mensaje == null)");
+                    continue;
+                }
+                System.out.println(java.time.LocalDateTime.now() + " - ActorPrestamo recibió (raw): '" + mensaje + "'");
 
                 // Formato: PRESTAMO|id|codigoLibro|usuarioId|fecha|null
                 String[] parts = mensaje.split("\\|");
                 if (parts.length < 5) {
-                    System.err.println("Formato de mensaje inválido");
+                    System.err.println("[DEBUG] Formato de mensaje inválido: '" + mensaje + "'");
                     continue;
                 }
 
