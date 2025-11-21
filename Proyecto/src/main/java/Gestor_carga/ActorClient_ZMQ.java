@@ -6,6 +6,8 @@ import org.zeromq.ZMQException;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.zeromq.ZMQ.Socket;
+
 /**
  * Actor genérico para manejar DEVOLUCION y RENOVACION.
  * - Patrón ZMQ: SUB para recibir peticiones del GC.
@@ -81,7 +83,7 @@ public class ActorClient_ZMQ {
                     // --- 2. Procesar respuesta y enviar al GC (PUSH) ---
                     String finalResult = receivedTopic + "|" + messageId + "|" + gaResponse;
                     pusher.send(finalResult);
-                    System.out.println("Actor " + operationType + " envió PUSH: " + finalResult);
+                    System.out.println("Resultado enviado al GC: " + finalResult);
                 }
             } catch (ZMQException e) {
                 System.err.println("Error ZMQ en el Actor " + operationType + " (Requester): " + e.getMessage());
@@ -93,36 +95,34 @@ public class ActorClient_ZMQ {
 
     private String sendAndReceiveGA(ZMQ.Socket requester, String request) {
         int intentos = 0;
-        int maxIntentos = gaHosts.length * 2; 
+        int maxIntentos = gaHosts.length * 2;
         final int gaTimeoutMs = 3000;
-
         while (intentos < maxIntentos) {
-            
+
             int index = currentGaIndex.get();
-            String gaHost = gaHosts[index];
-            int gaPort = gaPorts[index];
-            
             try {
+                // Enviar petición por REQ socket
                 requester.send(request.getBytes(ZMQ.CHARSET));
-                byte[] reply = requester.recv(gaTimeoutMs); 
+                byte[] replyBytes = requester.recv(gaTimeoutMs);
 
-                if (reply != null) {
-                    System.out.println("[INFO Actor " + operationType + "] Éxito con GA " + gaHost + ":" + gaPort);
-                    return new String(reply, ZMQ.CHARSET);
+                if (replyBytes != null) {
+                    String reply = new String(replyBytes, ZMQ.CHARSET);
+                    System.out.println("[INFO Actor " + operationType + "] Éxito con GA " + gaHosts[index] + ":" + gaPorts[index]);
+                    // Mover al siguiente GA para la próxima vez (simple round-robin)
+                    currentGaIndex.set((index + 1) % gaHosts.length);
+                    return reply;
+                } else {
+                    System.err.println("[WARN Actor " + operationType + "] Sin respuesta de GA " + gaHosts[index] + ":" + gaPorts[index]);
+                    // Rotar al siguiente GA y reintentar
+                    currentGaIndex.set((index + 1) % gaHosts.length);
                 }
-                
-                // Timeout
-                System.err.println("[FAILOVER Actor " + operationType + "] GA " + gaHost + ":" + gaPort + " no responde a tiempo. Rotando...");
-                currentGaIndex.set((index + 1) % gaHosts.length);
-                intentos++;
-
             } catch (ZMQException e) {
-                System.err.println("[FAILOVER Actor " + operationType + "] ZMQ Error en GA " + gaHost + ":" + gaPort + ": " + e.getMessage());
+                System.err.println("[ERROR Actor " + operationType + "] Error ZMQ con GA " + gaHosts[index] + ":" + gaPorts[index] + " - " + e.getMessage());
+                // Rotar y contar intento como fallido
                 currentGaIndex.set((index + 1) % gaHosts.length);
-                intentos++;
             }
+            intentos++;
         }
-        
         return "ERROR|Timeout de comunicación con GA (después de " + maxIntentos + " intentos)";
     }
     
