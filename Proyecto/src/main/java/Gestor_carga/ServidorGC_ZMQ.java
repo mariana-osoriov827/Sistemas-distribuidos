@@ -11,315 +11,206 @@ package Gestor_carga;
 
 import org.zeromq.ZMQ;
 import org.zeromq.ZContext;
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.Arrays;
+import org.zeromq.ZMQException;
+import java.util.concurrent.TimeUnit;
 import java.util.Map;
 
 public class ServidorGC_ZMQ {
-    
     private final int sede;
     private final String pubPort;
     private final String repPort;
     private final String[] gaHosts;
     private final int[] gaPorts;
-    private int currentGaIndex = 0;
+
+    private GAClientProxy gaProxy;
+    private final String internalProxyPort = "gc_proxy_requests";
+
+    // Mapas para seguimiento de mensajes asíncronos (Devolución/Renovación)
+    private final Map<String, String> messageStatus = new ConcurrentHashMap<String, String>();
     
-    // Mapas para seguimiento de mensajes
-    private final Map<String, String> messageStatus = new ConcurrentHashMap<>();
-    private final DateTimeFormatter fmt = DateTimeFormatter.ISO_LOCAL_DATE;
-    
-    public ServidorGC_ZMQ(int sede, String pubPort, String repPort, String gaList) {
+    public ServidorGC_ZMQ(int sede, String pubPort, String repPort, String gaAddress) {
         this.sede = sede;
         this.pubPort = pubPort;
         this.repPort = repPort;
         
-        // Parsear múltiples GAs
-        String[] gaArray = gaList.split(",");
-        this.gaHosts = new String[gaArray.length];
-        this.gaPorts = new int[gaArray.length];
-        
-        for (int i = 0; i < gaArray.length; i++) {
-            String[] parts = gaArray[i].split(":");
+        // Configuración de GAs para failover
+        String[] gaServers = gaAddress.split(",");
+        this.gaHosts = new String[gaServers.length];
+        this.gaPorts = new int[gaServers.length];
+        for (int i = 0; i < gaServers.length; i++) {
+            String[] parts = gaServers[i].trim().split(":");
             this.gaHosts[i] = parts[0];
             this.gaPorts[i] = Integer.parseInt(parts[1]);
         }
         
-        System.out.println("GC configurado con " + gaArray.length + " GA(s):");
-        for (int i = 0; i < gaHosts.length; i++) {
-            System.out.println("  GA" + (i+1) + ": " + gaHosts[i] + ":" + gaPorts[i]);
-        }
+        System.out.println("GC Sede " + sede + " | GA configurados: " + Arrays.toString(gaServers));
     }
     
     public void iniciar() {
         try (ZContext context = new ZContext()) {
             
+            // 1. INICIAR EL PROXY DE COMUNICACIÓN CON EL GA (No bloqueante para este hilo)
+            gaProxy = new GAClientProxy(context, gaHosts, gaPorts, internalProxyPort);
+            gaProxy.start();
+            
             // Socket PUB para publicar mensajes asíncronos (Devolución/Renovación)
             ZMQ.Socket publisher = context.createSocket(ZMQ.PUB);
             publisher.bind("tcp://*:" + pubPort);
-            System.out.println("GC Sede " + sede + " - Publisher listo en puerto " + pubPort);
+            System.out.println("GC Sede " + sede + " | PUB escuchando en puerto " + pubPort);
             
-            // Socket REP para atender solicitudes síncronas (Préstamo)
+            // Socket REP para recibir peticiones síncronas de Clientes
             ZMQ.Socket replier = context.createSocket(ZMQ.REP);
             replier.bind("tcp://*:" + repPort);
-            System.out.println("GC Sede " + sede + " - Replier listo en puerto " + repPort);
+            System.out.println("GC Sede " + sede + " | REP escuchando en puerto " + repPort);
             
-            // Socket PULL para recibir resultados de actores (REP + 1)
-            int resultPort = Integer.parseInt(repPort) + 1;
+            // Socket PULL para recibir resultados asíncronos de los Actores
             ZMQ.Socket resultPuller = context.createSocket(ZMQ.PULL);
-            resultPuller.bind("tcp://*:" + resultPort);
-            System.out.println("GC Sede " + sede + " - Result Puller listo en puerto " + resultPort);
+            // Asumimos que el PULL se conecta a un puerto conocido, aquí se usa 5557 como ejemplo
+            resultPuller.bind("tcp://*:5557"); 
+            System.out.println("GC Sede " + sede + " | PULL escuchando en puerto 5557");
             
-            // IMPORTANTE: No creamos socket REQ aquí para evitar bloqueos.
-            // Los préstamos síncronos serán manejados por un Actor dedicado que
-            // se comunica directamente con el GA usando patrón REQ/REP
-            
-            // Pequeña pausa para que los suscriptores se conecten
-            Thread.sleep(1000);
-            
-            // Poller para manejar múltiples sockets
-            ZMQ.Poller poller = context.createPoller(2);
-            poller.register(replier, ZMQ.Poller.POLLIN);
+            // Configuración del Poller
+            ZMQ.Poller poller = context.createPoller(2); // Solo 2 sockets principales
+            poller.register(replier, ZMQ.Poller.POLLIN); 
             poller.register(resultPuller, ZMQ.Poller.POLLIN);
             
-            System.out.println("ServidorGC_ZMQ Sede " + sede + " corriendo...\n");
+            Thread.sleep(1000); // Pausa para inicialización
             
+            // Bucle principal de manejo de eventos
             while (!Thread.currentThread().isInterrupted()) {
-                // Poll con timeout de 10ms (más rápido)
-                poller.poll(10);
+                // Espera hasta 100ms por un evento
+                poller.poll(100); 
                 
-                // Manejar resultados de actores (PULL socket)
-                if (poller.pollin(1)) {
-                    String resultMsg = resultPuller.recvStr();
-                    // Formato: RESULT|messageId|status|mensaje|tipo  (mensaje puede faltar)
-                    String[] resultParts = resultMsg.split("\\|", 5);
-                    if (resultParts.length >= 4) {
-                        String msgId = resultParts[1];
-                        String status = resultParts[2];
-                        String tipo = resultParts[resultParts.length - 1];
-                        String mensajeCompleto;
-                        if (resultParts.length == 5) {
-                            // Hay mensaje de error real
-                            mensajeCompleto = status + "|" + resultParts[3];
-                        } else {
-                            mensajeCompleto = status;
-                        }
-                        messageStatus.put(msgId, mensajeCompleto);
-                        System.out.println("GC registró resultado " + tipo + " [" + msgId + "]: " + mensajeCompleto);
-                        System.out.println("[DEBUG GC] messageStatus actual: " + messageStatus);
-                    } else {
-                        System.out.println("[DEBUG GC] Resultado de actor con formato inválido: " + resultMsg);
-                    }
-                }
-                
-                // Manejar todas las solicitudes (REP socket)
+                // 1. Manejo de peticiones síncronas (Cliente REQ/REP)
                 if (poller.pollin(0)) {
                     String request = replier.recvStr();
-                    System.out.println("GC recibió solicitud: " + request);
+                    System.out.println("GC recibió REQ: " + request);
                     
-                    // Formato: TIPO|codigoLibro|usuarioId
-                    String[] parts = request.split("\\|");
+                    String[] parts = request.split("\\|", 3);
+                    String tipo = parts[0];
+                    
                     if (parts.length >= 1) {
-                        String tipo = parts[0].toUpperCase();
+                        String response;
+                        String messageId = UUID.randomUUID().toString();
                         
-                        if ("INFO".equals(tipo) && parts.length >= 2) {
-                            // INFO: Consultar información del libro
-                            String codigoLibro = parts[1];
-                            String infoLibro = consultarInfoLibro(codigoLibro);
-                            replier.send(infoLibro);
-                            System.out.println("GC respondió INFO: " + infoLibro);
-                            
-                        } else if ("STATUS".equals(tipo) && parts.length >= 2) {
-                            // STATUS: Consultar estado de operación asíncrona
-                            String messageId = parts[1];
-                            String status = messageStatus.getOrDefault(messageId, "PENDING");
-                            System.out.println("[DEBUG GC] STATUS solicitado para messageId: " + messageId);
-                            System.out.println("[DEBUG GC] messageStatus actual: " + messageStatus);
-                            replier.send("STATUS|" + status);
-                            System.out.println("GC respondió STATUS para " + messageId + ": " + status);
-                            // Limpiar solo si ya no es PENDING
-                            if (!"PENDING".equals(status)) {
-                                messageStatus.remove(messageId);
-                                System.out.println("[DEBUG GC] messageStatus tras limpiar: " + messageStatus);
-                            }
-                        } else if ("CANCEL".equals(tipo)) {
-                            // CANCEL: Cliente canceló operación
-                            replier.send("OK|Cancelado");
-                            System.out.println("GC: operación cancelada por cliente");
-                            
-                        } else if (parts.length >= 3) {
-                            String codigoLibro = parts[1];
-                            String usuarioId = parts[2];
-                        
-                            if ("PRESTAMO".equals(tipo)) {
-                                // PRESTAMO: Publicar y esperar respuesta real del actor
-                                String id = UUID.randomUUID().toString();
-                                String fecha = LocalDate.now().format(fmt);
-                                String mensaje = String.format("%s|%s|%s|%s|%s|%s", 
-                                    tipo, id, codigoLibro, usuarioId, fecha, "null");
-                                messageStatus.put(id, "PENDING"); // Poner antes de enviar
-                                publisher.send(mensaje);
-                                System.out.println("GC publicó PRESTAMO: " + mensaje);
-                                // Esperar resultado real del actor (bloqueante, timeout opcional)
-                                String resultado = esperarResultadoActor(id, 2000); // Timeout reducido a 2s
-                                if (resultado == null) {
-                                    replier.send("ERROR|No se recibió respuesta del actor|" + id);
-                                } else if (resultado.startsWith("OK")) {
-                                    replier.send("OK|Préstamo otorgado");
+                        switch (tipo) {
+                            case "INFO":
+                                // >>> MANEJO SÍNCRONO CON EL PROXY (NO BLOQUEA ESTE HILO)
+                                if (parts.length >= 2) {
+                                    String codigoLibro = parts[1];
+                                    
+                                    // 1. Enviar la petición al Proxy 
+                                    gaProxy.sendRequest(messageId, "INFO|" + codigoLibro + "|system");
+                                    
+                                    // 2. Esperar la respuesta del Proxy (síncrono para el cliente)
+                                    response = gaProxy.getResponse(messageId, 5000); 
+                                    // <<< FIN MANEJO SÍNCRONO CON EL PROXY
                                 } else {
-                                    // El actor debe propagar el mensaje de error del GA
-                                    replier.send(resultado);
+                                    response = "ERROR|Faltan parámetros para INFO";
                                 }
-                                System.out.println("GC respondió préstamo: " + (resultado != null ? resultado : "sin respuesta"));
+                                break;
                                 
-                            } else if ("DEVOLUCION".equals(tipo) || "RENOVACION".equals(tipo)) {
-                                // DEVOLUCION/RENOVACION: Publicar y esperar respuesta real del actor
-                                String id = UUID.randomUUID().toString();
-                                String fecha = LocalDate.now().format(fmt);
-                                String nuevaFecha = "RENOVACION".equals(tipo) ? 
-                                    LocalDate.now().plusWeeks(1).format(fmt) : "null";
-                                String mensaje = String.format("%s|%s|%s|%s|%s|%s", 
-                                    tipo, id, codigoLibro, usuarioId, fecha, nuevaFecha);
-                                messageStatus.put(id, "PENDING");
-                                publisher.send(mensaje);
-                                System.out.println("GC publicó " + tipo + ": " + mensaje);
-                                // Esperar resultado real del actor (bloqueante, timeout opcional)
-                                String resultado = esperarResultadoActor(id, 2000); // Espera solo 2 segundos
-                                int waited = 2000;
-                                // Ya no espera más de 2 segundos, responde rápido y el cliente hará polling si es necesario
-                                if (resultado == null || resultado.trim().isEmpty() || "PENDING".equals(resultado)) {
-                                    replier.send("ERROR|No se recibió respuesta del actor|" + id);
-                                } else if (resultado.startsWith("OK|")) {
-                                    // Si el actor envió un mensaje de éxito, propagarlo
-                                    String[] okParts = resultado.split("\\|", 2);
-                                    String msg = okParts.length > 1 && !okParts[1].isEmpty()
-                                        ? okParts[1]
-                                        : ("DEVOLUCION".equals(tipo) ? "Devolución registrada" : "Renovación exitosa");
-                                    replier.send("OK|" + msg);
-                                } else if (resultado.equals("OK")) {
-                                    replier.send("OK|" + ("DEVOLUCION".equals(tipo) ? "Devolución registrada" : "Renovación exitosa"));
-                                } else if (resultado.startsWith("FAILED|")) {
-                                    String msg = resultado.length() > 7 ? resultado.substring(7) : "Error desconocido";
-                                    replier.send("ERROR|" + msg);
-                                } else if (resultado.startsWith("ERROR|")) {
-                                    String msg = resultado.length() > 6 ? resultado.substring(6) : "Error desconocido";
-                                    replier.send("ERROR|" + msg);
+                            case "PRESTAMO":
+                                if (parts.length >= 3) {
+                                    // ... Lógica de PRESTAMO (similar a INFO, usa el GA para validación)
+                                    String codigoLibro = parts[1];
+                                    String userId = parts[2];
+                                    
+                                    // 1. Asignar el trabajo a un Actor (Patrón Asíncrono)
+                                    String actorRequest = "PRESTAMO|" + codigoLibro + "|" + userId + "|" + messageId;
+                                    publisher.sendMore("PRESTAMO");
+                                    publisher.send(actorRequest);
+                                    
+                                    messageStatus.put(messageId, "PENDING"); // Marcar como pendiente
+                                    
+                                    // 2. Esperar el resultado del Actor (simula REQ/REP síncrono para el cliente)
+                                    response = esperarResultadoActor(messageId, 5000); // 5 segundos
+                                    
                                 } else {
-                                    // Si el resultado es inesperado, mostrarlo como info
-                                    replier.send("INFO|" + resultado);
+                                    response = "ERROR|Faltan parámetros para PRESTAMO";
                                 }
-                                System.out.println("GC respondió " + tipo + ": " + (resultado != null ? resultado : "sin respuesta"));
+                                break;
                                 
-                            } else {
-                                replier.send("ERROR|Tipo de operación desconocido");
-                            }
-                        } else {
-                            replier.send("ERROR|Formato inválido - parámetros insuficientes");
+                            case "DEVOLUCION":
+                            case "RENOVACION":
+                                // Respuestas inmediatas y publicación asíncrona
+                                if (parts.length >= 3) {
+                                    String codigoLibro = parts[1];
+                                    String userId = parts[2];
+                                    
+                                    // 1. Respuesta inmediata al cliente
+                                    response = "OK|Operación de " + tipo + " aceptada. Procesando...";
+                                    
+                                    // 2. Publicar asíncronamente a los Actores
+                                    publisher.sendMore(tipo); // Tópico
+                                    publisher.send(tipo + "|" + codigoLibro + "|" + userId + "|" + messageId); // Mensaje
+                                    
+                                } else {
+                                    response = "ERROR|Faltan parámetros para " + tipo;
+                                }
+                                break;
+                                
+                            case "STATUS":
+                                if (parts.length >= 2) {
+                                    String statusId = parts[1];
+                                    String status = messageStatus.getOrDefault(statusId, "PENDING");
+                                    response = "STATUS|" + status;
+                                } else {
+                                    response = "ERROR|Faltan parámetros para STATUS";
+                                }
+                                break;
+                                
+                            case "CANCEL":
+                                // Usado por el cliente para liberar el lockstep del REP
+                                response = "OK|Cancelación recibida";
+                                break;
+                                
+                            default:
+                                response = "ERROR|Operación desconocida: " + tipo;
+                                break;
                         }
-                    } else {
-                        replier.send("ERROR|Formato inválido");
+                        
+                        replier.send(response);
+                        System.out.println("GC respondió REQ: " + response);
+                    }
+                }
+                
+                // 2. Manejo de resultados asíncronos (Actor PUSH/PULL)
+                if (poller.pollin(1)) {
+                    String result = resultPuller.recvStr();
+                    System.out.println("GC recibió PULL (Resultado Actor): " + result);
+                    
+                    // El resultado debe tener el formato: TIPO|messageId|STATUS_O_MENSAJE
+                    String[] resultParts = result.split("\\|", 3);
+                    if (resultParts.length >= 3) {
+                        String messageId = resultParts[1];
+                        String status = resultParts[2];
+                        
+                        // Almacenar el resultado o mensaje final
+                        messageStatus.put(messageId, status);
                     }
                 }
             }
-            
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-    
-    /**
-     * Consulta información del libro en el GA con failover automático
-     */
-    private String consultarInfoLibro(String codigoLibro) {
-        return consultarGA("INFO|" + codigoLibro + "|system");
-    }
-    
-    /**
-     * Valida si el libro tiene un préstamo activo con failover
-     */
-    private boolean validarPrestamo(String codigoLibro) {
-        String response = consultarGA("VALIDAR_PRESTAMO|" + codigoLibro + "|system");
-        return response != null && response.startsWith("OK|true");
-    }
-    
-    /**
-     * Consulta genérica al GA con failover automático
-     */
-    private String consultarGA(String request) {
-        int intentos = 0;
-        int maxIntentos = gaHosts.length * 2;
-        
-        while (intentos < maxIntentos) {
-            String gaHost = gaHosts[currentGaIndex];
-            int gaPort = gaPorts[currentGaIndex];
-            
-            try {
-                java.net.Socket socket = new java.net.Socket();
-                socket.connect(new java.net.InetSocketAddress(gaHost, gaPort), 10000);
-                socket.setSoTimeout(3000);
-                
-                java.io.PrintWriter out = new java.io.PrintWriter(socket.getOutputStream(), true);
-                java.io.BufferedReader in = new java.io.BufferedReader(
-                    new java.io.InputStreamReader(socket.getInputStream()));
-                
-                out.println(request);
-                String response = in.readLine();
-                
-                socket.close();
-                return response != null ? response : "ERROR|Sin respuesta del GA";
-                
-            } catch (Exception e) {
-                System.err.println("[FAILOVER] GA " + gaHost + ":" + gaPort + " no disponible");
-                
-                currentGaIndex = (currentGaIndex + 1) % gaHosts.length;
-                intentos++;
-                
-                if (intentos < maxIntentos) {
-                    System.out.println("[FAILOVER] GC intentando con GA " + gaHosts[currentGaIndex] + ":" + gaPorts[currentGaIndex]);
-                    try {
-                        Thread.sleep(500);
-                    } catch (InterruptedException ie) {
-                        Thread.currentThread().interrupt();
-                    }
-                }
+        } catch (InterruptedException e) {
+            System.err.println("GC interrumpido: " + e.getMessage());
+        } finally {
+            if (gaProxy != null) {
+                gaProxy.interrupt();
             }
         }
-        
-        return "ERROR|Todos los GAs no disponibles";
     }
-    
-    /**
-     * Publica mensaje asíncrono (Devolución o Renovación)
-     */
-    public void publicarMensajeAsync(ZMQ.Socket publisher, String tipo, String codigoLibro, String usuarioId) {
-        String id = UUID.randomUUID().toString();
-        String fecha = LocalDate.now().format(fmt);
-        String nuevaFecha = null;
-        
-        if ("RENOVACION".equalsIgnoreCase(tipo)) {
-            nuevaFecha = LocalDate.now().plusWeeks(1).format(fmt);
-        }
-        
-        // Formato: TIPO|id|codigoLibro|usuarioId|fecha|nuevaFecha
-        String mensaje = String.format("%s|%s|%s|%s|%s|%s", 
-            tipo.toUpperCase(), id, codigoLibro, usuarioId, fecha, 
-            nuevaFecha != null ? nuevaFecha : "null");
-        
-        publisher.send(mensaje);
-        messageStatus.put(id, "PENDING");
-        System.out.println("GC publicó " + tipo + ": " + mensaje);
-    }
-    
-    // --- Agregar función auxiliar para esperar resultado del actor ---
-    private String esperarResultadoActor(String id, int timeoutMs) {
+    // Método auxiliar para simular la espera síncrona del cliente por una operación asíncrona
+    private String esperarResultadoActor(String messageId, int timeoutMs) {
         int waited = 0;
-        int interval = 50;
-        String status;
+        int interval = 100; // Polling en este hilo
+        
         while (waited < timeoutMs) {
-            status = messageStatus.get(id);
+            String status = messageStatus.get(messageId);
             if (status != null && !"PENDING".equals(status)) {
-                // No eliminar aquí, solo devolver el resultado
+                messageStatus.remove(messageId);
                 return status;
             }
             try {
@@ -330,28 +221,7 @@ public class ServidorGC_ZMQ {
             }
             waited += interval;
         }
-        // Última comprobación por si el resultado llegó justo después del timeout
-        status = messageStatus.get(id);
-        if (status != null && !"PENDING".equals(status)) {
-            return status;
-        }
-        return null;
-    }
-    
-    public static void main(String[] args) {
-        if (args.length < 4) {
-            System.out.println("Uso: java ServidorGC_ZMQ <sede> <pubPort> <repPort> <gaHost1:port1[,gaHost2:port2]>");
-            System.out.println("Ejemplo Sede 1: java ServidorGC_ZMQ 1 5555 5556 localhost:5560,10.43.102.177:6560");
-            System.out.println("Ejemplo Sede 2: java ServidorGC_ZMQ 2 6555 6556 localhost:6560,10.43.103.49:5560");
-            System.exit(1);
-        }
         
-        int sede = Integer.parseInt(args[0]);
-        String pubPort = args[1];
-        String repPort = args[2];
-        String gaList = args[3];
-        
-        ServidorGC_ZMQ servidor = new ServidorGC_ZMQ(sede, pubPort, repPort, gaList);
-        servidor.iniciar();
+        return "ERROR|No se recibió respuesta del actor|" + messageId;
     }
 }
