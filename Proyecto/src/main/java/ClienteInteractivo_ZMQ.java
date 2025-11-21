@@ -88,40 +88,40 @@ public class ClienteInteractivo_ZMQ {
                     try { requester.recvStr(); } catch (Exception ex) {}
                     continue;
                 }
-                
-                        // Aquí se puede agregar el nuevo flujo correcto para manejar la respuesta
-                                        String response = requester.recvStr();
-                                        // Mostrar siempre el mensaje real, sin UUID ni texto extra
-                                        System.out.println("\n" + formatResponse(response));
-                                        // Si es operación asíncrona (DEVOLUCION o RENOVACION), esperar y consultar estado
-                                        if ((opcion.equals("2") || opcion.equals("3")) && response.contains("Aceptado|")) {
-                                            String[] responseParts = response.split("\\|");
-                                            if (responseParts.length >= 3) {
-                                                String messageId = responseParts[2];
-                                                System.out.println("\nEsperando resultado de la operación...");
-                                                // Esperar 2 segundos para que el actor procese
-                                                Thread.sleep(2000);
-                                                // Consultar estado
-                                                requester.send("STATUS|" + messageId);
-                                                String statusResponse = requester.recvStr();
-                                                // El actor responde con RESULT|<id>|SUCCESS|tipo|mensaje o RESULT|<id>|FAILED|tipo|motivo
-                                                if (statusResponse.startsWith("RESULT|")) {
-                                                    System.out.println("\n" + formatResponse(statusResponse));
-                                                } else if (statusResponse.startsWith("STATUS|")) {
-                                                    // Compatibilidad: solo estado simple
-                                                    String status = statusResponse.substring(7);
-                                                    if ("SUCCESS".equals(status)) {
-                                                        System.out.println("[OK] Operación completada exitosamente");
-                                                    } else if ("FAILED".equals(status)) {
-                                                        System.out.println("[ERROR] La operación no se pudo completar");
-                                                    } else {
-                                                        System.out.println("[INFO] Estado: " + status);
-                                                    }
-                                                } else {
-                                                    System.out.println("[INFO] Respuesta: " + statusResponse);
-                                                }
-                                            }
-                                        }
+                // Si el usuario confirma, enviar la operación real
+                requester.send(operacion);
+                String response = requester.recvStr();
+                // Mostrar siempre el mensaje real, sin UUID ni texto extra
+                System.out.println("\n" + formatResponse(response));
+                // Si es operación asíncrona (DEVOLUCION o RENOVACION), esperar y consultar estado
+                if ((opcion.equals("2") || opcion.equals("3")) && response.contains("Aceptado|")) {
+                    String[] responseParts = response.split("\\|");
+                    if (responseParts.length >= 3) {
+                        String messageId = responseParts[2];
+                        System.out.println("\nEsperando resultado de la operación...");
+                        // Esperar 2 segundos para que el actor procese
+                        Thread.sleep(2000);
+                        // Consultar estado
+                        requester.send("STATUS|" + messageId);
+                        String statusResponse = requester.recvStr();
+                        // El actor responde con RESULT|<id>|SUCCESS|tipo|mensaje o RESULT|<id>|FAILED|tipo|motivo
+                        if (statusResponse.startsWith("RESULT|")) {
+                            System.out.println("\n" + formatResponse(statusResponse));
+                        } else if (statusResponse.startsWith("STATUS|")) {
+                            // Compatibilidad: solo estado simple
+                            String status = statusResponse.substring(7);
+                            if ("SUCCESS".equals(status)) {
+                                System.out.println("[OK] Operación completada exitosamente");
+                            } else if ("FAILED".equals(status)) {
+                                System.out.println("[ERROR] La operación no se pudo completar");
+                            } else {
+                                System.out.println("[INFO] Estado: " + status);
+                            }
+                        } else {
+                            System.out.println("[INFO] Respuesta: " + statusResponse);
+                        }
+                    }
+                }
                         // Por ejemplo, si se necesita un nuevo manejo de respuesta, se puede implementar aquí.
                 
                 // Si es operación asíncrona (DEVOLUCION o RENOVACION), esperar y consultar estado
