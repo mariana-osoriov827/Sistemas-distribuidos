@@ -78,6 +78,27 @@ public class ClienteInteractivo_ZMQ {
                 
                 // Mostrar información del libro
                 System.out.println("\n" + infoResponse);
+
+                // Preparar la operación según la opción
+                String operacion = "";
+                switch (opcion) {
+                    case "1":
+                        operacion = "PRESTAMO|" + codigoLibro + "|" + userId;
+                        break;
+                    case "2":
+                        operacion = "DEVOLUCION|" + codigoLibro + "|" + userId;
+                        break;
+                    case "3":
+                        operacion = "RENOVACION|" + codigoLibro + "|" + userId;
+                        break;
+                    default:
+                        System.out.println("[ERROR] Opción inválida");
+                        // Consumir respuesta pendiente
+                        requester.send("CANCEL");
+                        requester.recvStr();
+                        continue;
+                }
+
                 System.out.print("¿Desea continuar con esta operación? (s/n): ");
                 String confirmacion = scanner.nextLine().trim().toLowerCase();
                 
