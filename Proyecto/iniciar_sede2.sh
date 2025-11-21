@@ -82,7 +82,7 @@ check_component "Gestor de Carga (GC)" $GC_PID "$GC_LOG"
 echo "[3/5] Iniciando Actor Devolución..."
 DEV_LOG=$(mktemp)
 # CORRECCIÓN: Pasa ${GA_LIST}
-java -cp "$CP" Gestor_carga.ActorClient_ZMQ ${GC_IP}:${PUB_PORT} ${GA_LIST} DEVOLUCION > "$DEV_LOG" 2>&1 &
+java -cp "$CP" Gestor_carga.ActorClient_ZMQ ${GC_IP}:${PUB_PORT} ${GA_LIST} DEVOLUCION ${GC_IP} > "$DEV_LOG" 2>&1 &
 DEV_PID=$!
 check_component "Actor Devolución" $DEV_PID "$DEV_LOG"
 
@@ -90,7 +90,7 @@ check_component "Actor Devolución" $DEV_PID "$DEV_LOG"
 echo "[4/5] Iniciando Actor Renovación..."
 REN_LOG=$(mktemp)
 # CORRECCIÓN: Pasa ${GA_LIST}
-java -cp "$CP" Gestor_carga.ActorClient_ZMQ ${GC_IP}:${PUB_PORT} ${GA_LIST} RENOVACION > "$REN_LOG" 2>&1 &
+java -cp "$CP" Gestor_carga.ActorClient_ZMQ ${GC_IP}:${PUB_PORT} ${GA_LIST} RENOVACION ${GC_IP} > "$REN_LOG" 2>&1 &
 REN_PID=$!
 check_component "Actor Renovación" $REN_PID "$REN_LOG"
 
@@ -98,7 +98,7 @@ check_component "Actor Renovación" $REN_PID "$REN_LOG"
 echo "[5/5] Iniciando Actor Préstamo..."
 PRES_LOG=$(mktemp)
 # CORRECCIÓN: Pasa ${GA_LIST}
-java -cp "$CP" Gestor_carga.ActorPrestamo_ZMQ ${GC_IP}:${PUB_PORT} ${GA_LIST} > "$PRES_LOG" 2>&1 &
+java -cp "$CP" Gestor_carga.ActorPrestamo_ZMQ ${GC_IP}:${PUB_PORT} ${GA_LIST} ${GC_IP} > "$PRES_LOG" 2>&1 &
 PRES_PID=$!
 check_component "Actor Préstamo" $PRES_PID "$PRES_LOG"
 
