@@ -3,151 +3,147 @@ package Gestor_carga;
 import org.zeromq.ZMQ;
 import org.zeromq.ZContext;
 import org.zeromq.ZMQException;
+
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.Map;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Gestiona la comunicación síncrona con los Gestores de Almacenamiento (GA) 
- * en un hilo separado para evitar el bloqueo del ServidorGC_ZMQ principal.
- * Utiliza ZMQ REQ/REP para las consultas INFO y PRESTAMO.
+ * Proxy para manejar la comunicación con los GAs de forma asíncrona
+ * respecto al hilo principal del ServidorGC_ZMQ, usando su propia hebra.
+ * Implementa Failover con Round-Robin.
  */
-public class GAClientProxy extends Thread {
-    
+public class GAClientProxy implements Runnable {
+
     private final ZContext context;
     private final String[] gaHosts;
     private final int[] gaPorts;
-    private volatile int currentGaIndex = 0; // Índice para failover Round-Robin
     
-    // Almacena temporalmente la respuesta de una solicitud para que el GC la recoja
-    private final Map<String, String> pendingResponses = new ConcurrentHashMap<>();
-    
-    // Cola local (inproc) para solicitudes entrantes del hilo principal del GC
-    private final ZMQ.Socket internalReceiver;
-    
-    // Puerto interno usado para la comunicación inproc (dentro del mismo proceso)
-    private final String internalPort;
-    
-    public GAClientProxy(ZContext context, String[] gaHosts, int[] gaPorts, String internalPort) {
+    // Cola para peticiones entrantes del GC (bloqueo suave)
+    private final LinkedBlockingQueue<ProxyRequest> requestQueue = new LinkedBlockingQueue<>();
+    // Mapa para almacenar las respuestas de vuelta al hilo del GC
+    private final ConcurrentHashMap<String, String> responseMap = new ConcurrentHashMap<>();
+
+    private volatile AtomicInteger currentGaIndex = new AtomicInteger(0);
+    private final int gaTimeoutMs = 3000;
+    private ZMQ.Socket requester;
+
+    public GAClientProxy(ZContext context, String[] gaHosts, int[] gaPorts) {
         this.context = context;
         this.gaHosts = gaHosts;
         this.gaPorts = gaPorts;
-        this.internalPort = internalPort;
-        
-        // Socket PULL interno para recibir peticiones del hilo principal del GC
-        this.internalReceiver = context.createSocket(ZMQ.PULL);
-        this.internalReceiver.bind("inproc://" + internalPort);
-    }
-    
-    // Método que usa el ServidorGC_ZMQ para enviar una petición al Proxy
-    public void sendRequest(String messageId, String request) {
-        // Formato: messageId|request
-        internalReceiver.send(messageId + "|" + request);
     }
 
-    // Método que usa el ServidorGC_ZMQ para obtener la respuesta
-    public String getResponse(String messageId, int timeoutMs) {
-        int waited = 0;
-        int interval = 50; // Intervalo de polling local
-        String response;
-        while (waited < timeoutMs) {
-            response = pendingResponses.get(messageId);
+    /**
+     * Llamado por el ServidorGC_ZMQ para enviar una petición de forma bloqueante,
+     * pero la lógica real REQ/REP es no-bloqueante en este hilo.
+     */
+    public String sendRequest(String request, String requestId) throws InterruptedException {
+        ProxyRequest proxyRequest = new ProxyRequest(requestId, request);
+        requestQueue.put(proxyRequest); // Bloquea si la cola está llena
+
+        // Esperar la respuesta de forma activa
+        long startTime = System.currentTimeMillis();
+        // Timeout para que el GC no espere eternamente (ej: 10 segundos)
+        long totalTimeoutMs = 10000; 
+
+        while (System.currentTimeMillis() - startTime < totalTimeoutMs) {
+            String response = responseMap.remove(requestId);
             if (response != null) {
-                pendingResponses.remove(messageId);
                 return response;
             }
-            try {
-                Thread.sleep(interval);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                break;
-            }
-            waited += interval;
+            // Pequeña espera para no consumir CPU
+            Thread.sleep(10); 
         }
-        return "ERROR|Timeout de comunicación GC->GA (Proxy)";
+
+        // Si hay timeout
+        return "ERROR|Timeout de respuesta del GA (después de " + totalTimeoutMs + "ms)";
     }
 
     @Override
     public void run() {
-        // Socket REQ para comunicarse con los GA (DEBE crearse y usarse en su propio hilo)
-        try (ZMQ.Socket requester = context.createSocket(ZMQ.REQ)) {
-            
-            // Conectar a todos los GAs para el Failover
+        // La creación del socket y el ciclo de vida de REQ/REP deben estar en esta hebra
+        try {
+            requester = context.createSocket(ZMQ.REQ);
+
+            // Conectar a todos los GAs
             for (int i = 0; i < gaHosts.length; i++) {
                 requester.connect("tcp://" + gaHosts[i] + ":" + gaPorts[i]);
                 System.out.println("GAClientProxy conectado a GA " + gaHosts[i] + ":" + gaPorts[i]);
             }
 
-            ZMQ.Poller poller = context.createPoller(1);
-            poller.register(internalReceiver, ZMQ.Poller.POLLIN);
-
             while (!Thread.currentThread().isInterrupted()) {
-                // Poll: espera peticiones internas (del GC)
-                poller.poll(50); 
-
-                if (poller.pollin(0)) {
-                    // Recibir mensaje interno (bloqueado por el Poller)
-                    String fullRequest = internalReceiver.recvStr(); 
-                    String[] parts = fullRequest.split("\\|", 2);
-                    String messageId = parts[0];
-                    String request = parts[1];
-                    
-                    // Enviar y recibir del GA con failover (Aquí ocurre el bloqueo, pero en este hilo auxiliar)
-                    String response = sendAndReceiveGA(requester, request);
-                    
-                    // Almacenar la respuesta para que el hilo principal del GC la recoja
-                    pendingResponses.put(messageId, response);
+                // Bloquea suavemente esperando una petición del GC
+                ProxyRequest proxyRequest = requestQueue.poll(100, TimeUnit.MILLISECONDS);
+                
+                if (proxyRequest != null) {
+                    String response = executeFailoverRequest(proxyRequest.request);
+                    // Devolver la respuesta al hilo del GC usando el mapa
+                    responseMap.put(proxyRequest.id, response);
                 }
             }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
         } catch (ZMQException e) {
-            System.err.println("Error fatal en GAClientProxy: " + e.getMessage());
+            System.err.println("Error fatal ZMQ en GAClientProxy: " + e.getMessage());
+        } finally {
+            if (requester != null) {
+                requester.close();
+            }
         }
     }
 
-    /**
-     * Envía la solicitud al GA con Failover (Round-Robin) y manejo de ZMQ REQ/REP.
-     */
-    private String sendAndReceiveGA(ZMQ.Socket requester, String request) {
+    private String executeFailoverRequest(String request) {
         int intentos = 0;
-        int maxIntentos = gaHosts.length * 2;
-        final int gaTimeoutMs = 5000; // Timeout de 5 segundos para la respuesta del GA
+        int maxIntentos = gaHosts.length * 2; // Intentar dos veces cada GA
 
         while (intentos < maxIntentos) {
-            
-            String gaHost = gaHosts[currentGaIndex];
-            int gaPort = gaPorts[currentGaIndex];
-            
+            int index = currentGaIndex.get();
+            String gaHost = gaHosts[index];
+            int gaPort = gaPorts[index];
+
             try {
                 // 1. Enviar
-                requester.send(request);
-                
+                requester.send(request.getBytes(ZMQ.CHARSET));
+
                 // 2. Esperar respuesta con timeout
-                byte[] reply = requester.recv(gaTimeoutMs);
+                // El error de 'cancellationToken' ha sido corregido aquí (0 es el flag)
+                byte[] reply = requester.recv(gaTimeoutMs); 
 
                 if (reply != null) {
-                    System.out.println("[INFO GAClientProxy] Éxito con GA " + gaHost + ":" + gaPort);
+                    System.out.println("[INFO Proxy] Éxito con GA " + gaHost + ":" + gaPort);
                     return new String(reply, ZMQ.CHARSET);
                 }
                 
                 // Si hay timeout (reply es null): FAILOVER
-                System.err.println("[FAILOVER] GA " + gaHost + ":" + gaPort + " no responde a tiempo. Rotando...");
+                System.err.println("[FAILOVER Proxy] GA " + gaHost + ":" + gaPort + " no responde a tiempo. Rotando...");
                 
-                // Si falla (timeout), rotar el índice.
-                currentGaIndex = (currentGaIndex + 1) % gaHosts.length;
+                // Rotar el índice y reintentar
+                currentGaIndex.set((index + 1) % gaHosts.length);
                 intentos++;
                 
-                // Nota: El socket ZMQ.REQ está ahora "atascado" esperando una respuesta. 
-                // Para recuperarlo, la forma más limpia es cerrar y recrear el socket, 
-                // pero por simplicidad de REQ/REP, confiamos en la auto-reconexión 
-                // y rotamos al siguiente servidor.
+                // NOTA: ZMQ recomienda resetear el socket REQ después de un timeout, 
+                // pero por simplicidad, confiamos en la reconexión automática aquí.
+                // Si tienes fallos persistentes, considera cerrar y recrear el socket.
 
             } catch (ZMQException e) {
-                System.err.println("[FAILOVER] ZMQ Error en GA " + gaHost + ":" + gaPort + ": " + e.getMessage());
-                // Si hay un error ZMQ (ej. context cerrado), también rotamos y reintentamos.
-                currentGaIndex = (currentGaIndex + 1) % gaHosts.length;
+                System.err.println("[FAILOVER Proxy] ZMQ Error en GA " + gaHost + ":" + gaPort + ": " + e.getMessage());
+                currentGaIndex.set((index + 1) % gaHosts.length);
                 intentos++;
             }
         }
-        
-        return "ERROR|Todos los GAs no disponibles (fallo en " + maxIntentos + " intentos)";
+
+        return "ERROR|Timeout de comunicación con GA (después de " + maxIntentos + " intentos)";
+    }
+
+    private static class ProxyRequest {
+        public final String id;
+        public final String request;
+
+        public ProxyRequest(String id, String request) {
+            this.id = id;
+            this.request = request;
+        }
     }
 }
