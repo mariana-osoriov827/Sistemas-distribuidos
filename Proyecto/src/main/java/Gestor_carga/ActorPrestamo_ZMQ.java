@@ -12,16 +12,11 @@ package Gestor_carga;
 
 import org.zeromq.ZMQ;
 import org.zeromq.ZContext;
+
 import java.net.Socket;
 import java.io.PrintWriter;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
-
-import java.io.*;
-
-import org.zeromq.ZMQException;
-
-import java.net.*;
 import java.util.Arrays;
 
 public class ActorPrestamo_ZMQ {
@@ -65,7 +60,7 @@ public class ActorPrestamo_ZMQ {
             // Comunicación con GA usando sockets Java estándar
             while (!Thread.currentThread().isInterrupted()) {
                 // Recibir mensaje completo (topic y cuerpo)
-                String receivedTopic = subscriber.recvStr(); 
+                subscriber.recvStr(); // descartar tópico
                 String request = subscriber.recvStr();
                 if (request == null) continue; // Si hay desconexión
                 System.out.println("Actor Prestamo recibió: " + request);
@@ -78,32 +73,38 @@ public class ActorPrestamo_ZMQ {
                 String codigoLibro = parts[1];
                 String userId = parts[2];
                 String messageId = parts[3];
-                // --- 1. Consultar disponibilidad al GA (BLOQUEANTE, con Failover) ---
+                // 1. Consultar disponibilidad al GA (BLOQUEANTE, con Failover)
                 String gaRequest = "VALIDAR_PRESTAMO|" + codigoLibro;
                 String gaResponse = sendAndReceiveGA_TCP(gaRequest);
                 String result;
-                if (gaResponse.startsWith("OK")) {
-                    // Simulación de procesamiento (ej: 500ms)
-                    Thread.sleep(500); 
-                    result = "EXITO|Préstamo de libro " + codigoLibro + " a usuario " + userId + " completado.";
-                    System.out.println("Actor Prestamo: Exito! " + result);
+                if (gaResponse.startsWith("OK|true")) {
+                    // 2. Realizar el préstamo real
+                    String prestamoRequest = "PRESTAMO|" + codigoLibro + "|" + userId;
+                    String prestamoResponse = sendAndReceiveGA_TCP(prestamoRequest);
+                    if (prestamoResponse.startsWith("OK")) {
+                        result = "EXITO|Préstamo de libro " + codigoLibro + " a usuario " + userId + " completado.";
+                        System.out.println("Actor Prestamo: Exito! " + result);
+                    } else {
+                        result = prestamoResponse;
+                        System.out.println("Actor Prestamo: Fallo al prestar. " + result);
+                    }
+                } else if (gaResponse.startsWith("OK|false")) {
+                    result = "FAILED|No puede prestar este libro porque no está disponible";
+                    System.out.println("Actor Prestamo: Libro no disponible.");
                 } else if (gaResponse.startsWith("ERROR|Timeout")) {
-                     result = "ERROR|Timeout de comunicación con GA. Intente de nuevo.";
-                     System.err.println("Actor Prestamo: Fallo por timeout con GA.");
+                    result = "ERROR|Timeout de comunicación con GA. Intente de nuevo.";
+                    System.err.println("Actor Prestamo: Fallo por timeout con GA.");
                 } else {
                     result = gaResponse;
                     System.out.println("Actor Prestamo: Fallo por validación GA. " + result);
                 }
-                // --- 3. Enviar resultado de vuelta al GC (PUSH) ---
+                // 3. Enviar resultado de vuelta al GC (PUSH)
                 String finalResult = topic + "|" + messageId + "|" + result;
                 pusher.send(finalResult);
                 System.out.println("Actor Prestamo envió PUSH: " + finalResult);
             }
 
-        } catch (InterruptedException e) {
-            System.out.println("Actor Prestamo interrumpido.");
-            Thread.currentThread().interrupt();
-        }
+        } 
     }
 
     /**
