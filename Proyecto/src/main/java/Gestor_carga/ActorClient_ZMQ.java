@@ -119,8 +119,8 @@ public class ActorClient_ZMQ {
             try (Socket socket = new Socket()) {
                 socket.connect(new java.net.InetSocketAddress(gaHost, gaPort), gaTimeoutMs);
                 socket.setSoTimeout(gaTimeoutMs);
-                PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
-                BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+                PrintWriter out = new PrintWriter(new java.io.OutputStreamWriter(socket.getOutputStream(), java.nio.charset.StandardCharsets.UTF_8), true);
+                BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream(), java.nio.charset.StandardCharsets.UTF_8));
                 out.println(request);
                 String reply = in.readLine();
                 if (reply != null) {
