@@ -12,6 +12,10 @@ package Gestor_carga;
 
 import org.zeromq.ZMQ;
 import org.zeromq.ZContext;
+import java.net.Socket;
+import java.io.PrintWriter;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 
 import java.io.*;
 
@@ -58,50 +62,42 @@ public class ActorPrestamo_ZMQ {
             pusher.connect("tcp://" + gcResultIp + ":5557");
             System.out.println("Actor Prestamo | Conectado al PULL del GC en " + gcResultIp + ":5557");
 
-            // 3. Socket REQ para comunicarse con los GAs (Síncrono para la consulta)
-            try (ZMQ.Socket requester = context.createSocket(ZMQ.REQ)) {
-                for (int i = 0; i < gaHosts.length; i++) {
-                    requester.connect("tcp://" + gaHosts[i] + ":" + gaPorts[i]);
+            // Comunicación con GA usando sockets Java estándar
+            while (!Thread.currentThread().isInterrupted()) {
+                // Recibir mensaje completo (topic y cuerpo)
+                String receivedTopic = subscriber.recvStr(); 
+                String request = subscriber.recvStr();
+                if (request == null) continue; // Si hay desconexión
+                System.out.println("Actor Prestamo recibió: " + request);
+                // Formato esperado: PRESTAMO|codigoLibro|userId|messageId
+                String[] parts = request.split("\\|", 4);
+                if (parts.length < 4) {
+                    System.err.println("Mensaje de Prestamo incompleto: " + request);
+                    continue;
                 }
-                while (!Thread.currentThread().isInterrupted()) {
-                    // Recibir mensaje completo (topic y cuerpo)
-                    String receivedTopic = subscriber.recvStr(); 
-                    String request = subscriber.recvStr();
-                    if (request == null) continue; // Si hay desconexión
-                    System.out.println("Actor Prestamo recibió: " + request);
-                    // Formato esperado: PRESTAMO|codigoLibro|userId|messageId
-                    String[] parts = request.split("\\|", 4);
-                    if (parts.length < 4) {
-                        System.err.println("Mensaje de Prestamo incompleto: " + request);
-                        continue;
-                    }
-                    String codigoLibro = parts[1];
-                    String userId = parts[2];
-                    String messageId = parts[3];
-                    // --- 1. Consultar disponibilidad al GA (BLOQUEANTE, con Failover) ---
-                    String gaRequest = "VALIDAR_PRESTAMO|" + codigoLibro;
-                    String gaResponse = sendAndReceiveGA(requester, gaRequest);
-                    String result;
-                    if (gaResponse.startsWith("OK")) {
-                        // Simulación de procesamiento (ej: 500ms)
-                        Thread.sleep(500); 
-                        result = "EXITO|Préstamo de libro " + codigoLibro + " a usuario " + userId + " completado.";
-                        System.out.println("Actor Prestamo: Exito! " + result);
-                    } else if (gaResponse.startsWith("ERROR|Timeout")) {
-                         result = "ERROR|Timeout de comunicación con GA. Intente de nuevo.";
-                         System.err.println("Actor Prestamo: Fallo por timeout con GA.");
-                    } else {
-                        result = gaResponse;
-                        System.out.println("Actor Prestamo: Fallo por validación GA. " + result);
-                    }
-                    
-                    // --- 3. Enviar resultado de vuelta al GC (PUSH) ---
-                    String finalResult = topic + "|" + messageId + "|" + result;
-                    pusher.send(finalResult);
-                    System.out.println("Actor Prestamo envió PUSH: " + finalResult);
+                String codigoLibro = parts[1];
+                String userId = parts[2];
+                String messageId = parts[3];
+                // --- 1. Consultar disponibilidad al GA (BLOQUEANTE, con Failover) ---
+                String gaRequest = "VALIDAR_PRESTAMO|" + codigoLibro;
+                String gaResponse = sendAndReceiveGA_TCP(gaRequest);
+                String result;
+                if (gaResponse.startsWith("OK")) {
+                    // Simulación de procesamiento (ej: 500ms)
+                    Thread.sleep(500); 
+                    result = "EXITO|Préstamo de libro " + codigoLibro + " a usuario " + userId + " completado.";
+                    System.out.println("Actor Prestamo: Exito! " + result);
+                } else if (gaResponse.startsWith("ERROR|Timeout")) {
+                     result = "ERROR|Timeout de comunicación con GA. Intente de nuevo.";
+                     System.err.println("Actor Prestamo: Fallo por timeout con GA.");
+                } else {
+                    result = gaResponse;
+                    System.out.println("Actor Prestamo: Fallo por validación GA. " + result);
                 }
-            } catch (ZMQException e) {
-                System.err.println("Error ZMQ en el Actor Prestamo (Requester): " + e.getMessage());
+                // --- 3. Enviar resultado de vuelta al GC (PUSH) ---
+                String finalResult = topic + "|" + messageId + "|" + result;
+                pusher.send(finalResult);
+                System.out.println("Actor Prestamo envió PUSH: " + finalResult);
             }
 
         } catch (InterruptedException e) {
@@ -114,49 +110,32 @@ public class ActorPrestamo_ZMQ {
      * Realiza la comunicación síncrona con el GA, incluyendo Failover (Round-Robin) 
      * en caso de fallo o timeout.
      */
-    private String sendAndReceiveGA(ZMQ.Socket requester, String request) {
+    // Comunicación con GA usando sockets Java estándar (failover incluido)
+    private String sendAndReceiveGA_TCP(String request) {
         int intentos = 0;
-        // Número máximo de intentos antes de fallar por completo
-        int maxIntentos = gaHosts.length * 2; 
-        final int gaTimeoutMs = 3000; // 3 segundos para la respuesta del GA
-
+        int maxIntentos = gaHosts.length * 2;
+        final int gaTimeoutMs = 3000; // 3 segundos
         while (intentos < maxIntentos) {
-            
             String gaHost = gaHosts[currentGaIndex];
             int gaPort = gaPorts[currentGaIndex];
-            
-            try {
-                // 1. Enviar
-                requester.send(request);
-                
-                // 2. Esperar respuesta con timeout
-                // El error anterior de 'cancellationToken' ha sido corregido aquí (0 es el flag)
-                byte[] reply = requester.recv(gaTimeoutMs); 
-
+            try (Socket socket = new Socket()) {
+                socket.connect(new java.net.InetSocketAddress(gaHost, gaPort), gaTimeoutMs);
+                socket.setSoTimeout(gaTimeoutMs);
+                PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+                BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+                out.println(request);
+                String reply = in.readLine();
                 if (reply != null) {
                     System.out.println("[INFO ActorPrestamo] Éxito con GA " + gaHost + ":" + gaPort);
-                    return new String(reply, ZMQ.CHARSET);
+                    return reply;
                 }
-                
-                // Si hay timeout (reply es null): FAILOVER
                 System.err.println("[FAILOVER ActorPrestamo] GA " + gaHost + ":" + gaPort + " no responde a tiempo. Rotando...");
-                
-                // Rotar el índice y reintentar
-                currentGaIndex = (currentGaIndex + 1) % gaHosts.length;
-                intentos++;
-                
-                // NOTA: Para sockets REQ, después de un timeout, es a menudo necesario 
-                // recrear o resetear el socket para que el estado de REQ/REP no se rompa.
-                // Aquí, confiamos en la auto-reconexión de ZMQ, pero en un sistema de prod.
-                // esta sección requeriría un manejo más robusto del socket REQ/REP.
-
-            } catch (ZMQException e) {
-                System.err.println("[FAILOVER ActorPrestamo] ZMQ Error en GA " + gaHost + ":" + gaPort + ": " + e.getMessage());
-                currentGaIndex = (currentGaIndex + 1) % gaHosts.length;
-                intentos++;
+            } catch (Exception e) {
+                System.err.println("[FAILOVER ActorPrestamo] Error en GA " + gaHost + ":" + gaPort + ": " + e.getMessage());
             }
+            currentGaIndex = (currentGaIndex + 1) % gaHosts.length;
+            intentos++;
         }
-        
         return "ERROR|Timeout de comunicación con GA (después de " + maxIntentos + " intentos)";
     }
     
