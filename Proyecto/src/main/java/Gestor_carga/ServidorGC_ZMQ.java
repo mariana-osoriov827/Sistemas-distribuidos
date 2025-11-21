@@ -94,14 +94,14 @@ public class ServidorGC_ZMQ {
                 // Manejar resultados de actores (PULL socket)
                 if (poller.pollin(1)) {
                     String resultMsg = resultPuller.recvStr();
-                    // Formato: RESULT|messageId|status|tipo
-                    String[] resultParts = resultMsg.split("\\|");
+                    // Formato: RESULT|messageId|status|tipo|motivo
+                    String[] resultParts = resultMsg.split("\\|", 5);
                     if (resultParts.length >= 4) {
                         String msgId = resultParts[1];
-                        String status = resultParts[2];
-                        String tipo = resultParts[3];
-                        messageStatus.put(msgId, status);
-                        System.out.println("GC registró resultado " + tipo + " [" + msgId + "]: " + status);
+                        // Guardar el mensaje completo (sin el prefijo 'RESULT|')
+                        String fullResult = resultMsg.substring(7); // quita 'RESULT|'
+                        messageStatus.put(msgId, fullResult);
+                        System.out.println("GC registró resultado " + resultParts[3] + " [" + msgId + "]: " + resultParts[2] + (resultParts.length >= 5 ? " - " + resultParts[4] : ""));
                     }
                 }
                 
@@ -155,14 +155,13 @@ public class ServidorGC_ZMQ {
                             long timeout = 5000; // 5 segundos máximo
                             while (System.currentTimeMillis() - startWait < timeout) {
                                 if (messageStatus.containsKey(id)) {
-                                    status = messageStatus.get(id);
-                                    actorResult = status;
+                                    actorResult = messageStatus.get(id); // full result string
                                     break;
                                 }
                                 try { Thread.sleep(50); } catch (InterruptedException e) { break; }
                             }
                             if (actorResult != null && !"PENDING".equals(actorResult)) {
-                                replier.send("OK|" + actorResult + "|" + id);
+                                replier.send("OK|" + actorResult);
                                 System.out.println("GC respondió préstamo: " + actorResult);
                             } else {
                                 replier.send("ERROR|Timeout esperando respuesta del actor|" + id);
