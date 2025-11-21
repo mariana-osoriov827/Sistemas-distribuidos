@@ -115,7 +115,7 @@ public class ClienteInteractivo_ZMQ {
                 // Mostrar siempre el mensaje real, sin UUID ni texto extra
                 System.out.println("\n" + formatResponse(response));
                 // Si es operación asíncrona (DEVOLUCION o RENOVACION), esperar y consultar estado
-                if ((opcion.equals("2") || opcion.equals("3")) && response.contains("Aceptado|")) {
+                if ((opcion.equals("1") || opcion.equals("2") || opcion.equals("3")) && response.contains("Aceptado|")) {
                     String[] responseParts = response.split("\\|");
                     if (responseParts.length >= 3) {
                         String messageId = responseParts[2];
@@ -146,7 +146,7 @@ public class ClienteInteractivo_ZMQ {
                         // Por ejemplo, si se necesita un nuevo manejo de respuesta, se puede implementar aquí.
                 
                 // Si es operación asíncrona (DEVOLUCION o RENOVACION), esperar y consultar estado
-                if ((opcion.equals("2") || opcion.equals("3")) && response.contains("Aceptado|")) {
+                if ((opcion.equals("1") || opcion.equals("2") || opcion.equals("3")) && response.contains("Aceptado|")) {
                     String[] responseParts = response.split("\\|");
                     if (responseParts.length >= 3) {
                         String messageId = responseParts[2];
