@@ -1,9 +1,4 @@
 package Gestor_carga;
-import java.net.Socket;
-import java.io.PrintWriter;
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-
 
 import org.zeromq.ZMQ;
 import org.zeromq.ZContext;
@@ -76,11 +71,34 @@ public class ActorClient_ZMQ {
                 String codigoLibro = parts[1];
                 String userId = parts[2];
                 String messageId = parts[3];
-                // --- 1. Preparar y enviar petición al GA (TCP con failover) ---
-                String gaRequest = operationType + "|" + codigoLibro + "|" + userId;
-                String gaResponse = sendAndReceiveGA_TCP(gaRequest);
-                // --- 2. Procesar respuesta y enviar al GC (PUSH) ---
-                String finalResult = receivedTopic + "|" + messageId + "|" + gaResponse;
+
+                String result;
+                // --- 1. Validar con GA si el usuario tiene el libro prestado (para DEVOLUCION y RENOVACION) ---
+                String validationRequest = "VALIDAR_PRESTAMO|" + codigoLibro + "|" + userId;
+                String validationResponse = sendAndReceiveGA_TCP(validationRequest);
+                if (validationResponse.startsWith("OK|true")) {
+                    // --- 2. Si tiene el libro, realizar la operación real ---
+                    String gaRequest = operationType + "|" + codigoLibro + "|" + userId;
+                    String gaResponse = sendAndReceiveGA_TCP(gaRequest);
+                    if (gaResponse.startsWith("OK")) {
+                        result = "EXITO|" + (operationType.equals("DEVOLUCION") ? "Devolución" : "Renovación") + " de libro " + codigoLibro + " para usuario " + userId + ".";
+                        System.out.println("Actor " + operationType + ": Exito! " + result);
+                    } else {
+                        result = gaResponse;
+                        System.out.println("Actor " + operationType + ": Fallo en operación. " + result);
+                    }
+                } else if (validationResponse.startsWith("OK|false")) {
+                    result = "FAILED|El usuario no tiene el libro prestado";
+                    System.out.println("Actor " + operationType + ": Usuario no tiene el libro prestado.");
+                } else if (validationResponse.startsWith("ERROR|Timeout")) {
+                    result = "ERROR|Timeout de comunicación con GA. Intente de nuevo.";
+                    System.err.println("Actor " + operationType + ": Fallo por timeout con GA.");
+                } else {
+                    result = validationResponse;
+                    System.out.println("Actor " + operationType + ": Fallo por validación GA. " + result);
+                }
+                // --- 3. Procesar respuesta y enviar al GC (PUSH) ---
+                String finalResult = receivedTopic + "|" + messageId + "|" + result;
                 pusher.send(finalResult);
                 System.out.println("Resultado enviado al GC: " + finalResult);
             }
